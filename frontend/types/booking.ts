@@ -1,0 +1,21 @@
+export interface BookingHistoryItem {
+  booking_id: number;
+  total_price: number;
+  status: "pending" | "confirmed" | "cancelled";
+  created_at: string;
+  movie_title: string;
+  start_time: string;
+  room_name: string;
+}
+
+export type CreateBookingPayload = {
+  showtimeId: number;
+  seatIds: number[];
+  name: string;
+  phone: string;
+  email: string;
+  paymentMethod: string;
+  cardNumber?: string;
+  ticketDelivery?: string;
+  note?: string;
+};
