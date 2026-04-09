@@ -20,7 +20,7 @@ export function useMovies(
         setError("");
 
         const result = await moviesService.getMovies({ search, genre, status });
-        setMovies(result ? result : []);
+        setMovies(Array.isArray(result) ? result : []);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Không tải được phim");
       } finally {

@@ -25,7 +25,7 @@ export default function AdminUsersPage() {
       setLoading(true);
       setMessage("");
       const data = await adminService.getUsers();
-      setUsers(data);
+      setUsers(Array.isArray(data) ? data : []);
     } catch (error: unknown) {
       setMessage(
         error instanceof Error

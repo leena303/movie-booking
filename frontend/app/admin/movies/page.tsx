@@ -15,7 +15,7 @@ export default function AdminMoviesPage() {
         setLoading(true);
         setError("");
         const data = await adminService.getMovies();
-        setMovies(data);
+        setMovies(Array.isArray(data) ? data : []);
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : "Có lỗi xảy ra");
       } finally {

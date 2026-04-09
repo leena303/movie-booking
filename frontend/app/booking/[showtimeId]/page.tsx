@@ -34,7 +34,7 @@ export default function BookingPage() {
         const data = await moviesService.getSeatsByShowtimeId(
           Number(showtimeId),
         );
-        setSeats(data ? data : []);
+        setSeats(Array.isArray(data) ? data : []);
       } catch (err) {
         console.error("API ERROR:", err);
         setMessage("Không tải được ghế");

@@ -15,10 +15,16 @@ import {
 } from "@/types/admin";
 import { UserForm } from "@/types/user";
 
+/** Safely extract an array from axios response */
+function toArray<T>(res: { data: unknown }): T[] {
+  const raw = (res.data as Record<string, unknown>)?.data ?? res.data;
+  return Array.isArray(raw) ? (raw as T[]) : [];
+}
+
 export const adminService = {
   async getUsers(): Promise<AdminUser[]> {
     const res = await getAdminUsersApi();
-    return res.data?.data || [];
+    return toArray<AdminUser>(res);
   },
 
   async createUser(payload: UserForm) {
@@ -38,16 +44,16 @@ export const adminService = {
 
   async getMovies(): Promise<AdminMovie[]> {
     const res = await getAdminMoviesApi();
-    return res.data?.data || [];
+    return toArray<AdminMovie>(res);
   },
 
   async getBookings(): Promise<AdminBooking[]> {
     const res = await getAdminBookingsApi();
-    return res.data?.data || [];
+    return toArray<AdminBooking>(res);
   },
 
   async getShowtimes(): Promise<AdminShowtime[]> {
     const res = await getAdminShowtimesApi();
-    return res.data?.data || [];
+    return toArray<AdminShowtime>(res);
   },
 };

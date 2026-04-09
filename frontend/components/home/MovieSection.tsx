@@ -50,7 +50,7 @@ export default function MovieSection() {
       );
     }
 
-    if (!movies || movies.length === 0) {
+    if (!movies || !Array.isArray(movies) || movies.length === 0) {
       return (
         <div className="bg-light rounded-4 py-5 text-center border-dashed">
           <p className="text-muted mb-0">Chưa có phim trong mục này.</p>

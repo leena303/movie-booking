@@ -15,7 +15,7 @@ export default function AdminShowtimesPage() {
         setLoading(true);
         setError("");
         const data = await adminService.getShowtimes();
-        setShowtimes(data);
+        setShowtimes(Array.isArray(data) ? data : []);
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : "Có lỗi xảy ra");
       } finally {

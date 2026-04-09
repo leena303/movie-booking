@@ -15,7 +15,7 @@ export default function MoviesPage() {
       .getMovies()
       .then((data) => {
         console.log("movies response:", data);
-        setMovies(data);
+        setMovies(Array.isArray(data) ? data : []);
       })
       .catch(console.error)
       .finally(() => setLoading(false));

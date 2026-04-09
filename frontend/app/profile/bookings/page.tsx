@@ -24,7 +24,7 @@ export default function MyBookingsPage() {
         }
 
         const data = await bookingService.getMyBookings();
-        setBookings(data);
+        setBookings(Array.isArray(data) ? data : []);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Có lỗi xảy ra");
       } finally {

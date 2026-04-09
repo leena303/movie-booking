@@ -18,7 +18,7 @@ export default function AdminBookingsPage() {
 
         console.log("bookings data:", data);
 
-        setBookings(data);
+        setBookings(Array.isArray(data) ? data : []);
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : "Có lỗi xảy ra");
       } finally {
