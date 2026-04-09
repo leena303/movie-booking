@@ -60,7 +60,7 @@ export default function MovieSection() {
         <div className="alert alert-danger text-center">{error}</div>
       )}
 
-      {!loading && !error && filteredMovies.length === 0 && (
+      {/* {!loading && !error && filteredMovies.length === 0 && (
         <div className="alert alert-secondary text-center">
           Chưa có phim trong mục này.
         </div>
@@ -76,7 +76,7 @@ export default function MovieSection() {
             </div>
           ))}
         </div>
-      )}
+      )} */}
     </section>
   );
 }
