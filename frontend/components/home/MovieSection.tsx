@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { MovieStatus } from "@/types/movie";
-import MovieCard from "../movie/MovieCard";
+// import MovieCard from "../movie/MovieCard";
 import { useMovies } from "@/hooks/useMovies";
 
 export default function MovieSection() {
@@ -11,9 +11,9 @@ export default function MovieSection() {
   const { movies, loading, error } = useMovies("", "", activeTab);
 
   console.log("movies", movies);
-  const filteredMovies = movies
-    ? movies.filter((movie) => movie.status === activeTab)
-    : [];
+  // const filteredMovies = movies
+  //   ? movies.filter((movie) => movie.status === activeTab)
+  //   : [];
 
   return (
     <section id="movies-section" className="container py-5">
