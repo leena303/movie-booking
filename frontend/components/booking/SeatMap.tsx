@@ -9,8 +9,8 @@ interface Props {
 }
 
 export default function SeatMap({ seats, selectedSeats, onToggleSeat }: Props) {
-  const normalSeats = seats.filter((seat) => seat.type !== "vip");
-  const vipSeats = seats.filter((seat) => seat.type === "vip");
+  const normalSeats = seats ? seats.filter((seat) => seat.type !== "vip") : [];
+  const vipSeats = seats ? seats.filter((seat) => seat.type === "vip") : [];
 
   const chunkSeats = (seatArray: Seat[], rows: number) => {
     const result: Seat[][] = [];

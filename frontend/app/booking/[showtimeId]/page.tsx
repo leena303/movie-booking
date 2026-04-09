@@ -34,7 +34,7 @@ export default function BookingPage() {
         const data = await moviesService.getSeatsByShowtimeId(
           Number(showtimeId),
         );
-        setSeats(data);
+        setSeats(data ? data : []);
       } catch (err) {
         console.error("API ERROR:", err);
         setMessage("Không tải được ghế");
@@ -46,17 +46,31 @@ export default function BookingPage() {
     fetchSeats();
   }, [showtimeId]);
 
-  const selectedSeatObjects = useMemo(
-    () => seats.filter((seat) => selectedSeats.includes(seat.id)),
+  const totalPrice = useMemo(
+    () =>
+      (seats || [])
+        .filter((seat) => selectedSeats.includes(seat.id))
+        .map((seat) => {
+          return {
+            id: seat.id,
+            row_label: seat.row_label,
+            col_number: seat.col_number,
+            type: seat.type,
+            price: seat.type === "vip" ? 120000 : 90000,
+          };
+        })
+        .reduce((sum, seat) => sum + seat.price, 0),
     [seats, selectedSeats],
   );
 
-  const totalPrice = useMemo(() => {
-    return selectedSeatObjects.reduce(
-      (sum, seat) => sum + (seat.type === "vip" ? 120000 : 90000),
-      0,
-    );
-  }, [selectedSeatObjects]);
+  const chairString = useMemo(() => {
+    return selectedSeats
+      .map((seatId) => {
+        const seat = seats.find((seat) => seat.id === seatId);
+        return seat ? `${seat.row_label}${seat.col_number}` : "";
+      })
+      .join(", ");
+  }, [seats, selectedSeats]);
 
   function handleToggleSeat(seatId: number) {
     setSelectedSeats((prev) =>
@@ -71,7 +85,6 @@ export default function BookingPage() {
       router.push("/login");
       return;
     }
-
     router.push(
       `/payment?showtimeId=${showtimeId}&seats=${selectedSeats.join(",")}`,
     );
@@ -114,11 +127,7 @@ export default function BookingPage() {
                 <div className="mb-3">
                   <div className="fw-semibold mb-2">Ghế đã chọn:</div>
                   <div className="text-muted">
-                    {selectedSeatObjects.length > 0
-                      ? selectedSeatObjects
-                          .map((seat) => `${seat.row_label}${seat.col_number}`)
-                          .join(", ")
-                      : "Chưa chọn ghế"}
+                    {chairString.length > 0 ? chairString : "Chưa chọn ghế"}
                   </div>
                 </div>
 
