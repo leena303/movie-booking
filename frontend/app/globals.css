@@ -6,8 +6,8 @@
 
 body {
   margin: 0;
-  font-family: Arial, Helvetica, sans-serif;
-  background-color: #ffffff; 
+  font-family: Inter, system-ui, -apple-system, sans-serif;
+  background-color: #ffffff;
 }
 
 a {
@@ -34,4 +34,47 @@ input::-webkit-credentials-auto-fill-button {
 .scrollbar-hide {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+/* Premium UI Utilities */
+.transition-all {
+  transition: all 0.3s ease-in-out;
+}
+
+.transition-up {
+  transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+}
+
+.transition-up:hover {
+  transform: translateY(-8px);
+}
+
+.tracking-wider {
+  letter-spacing: 1px;
+}
+
+.border-dashed {
+  border: 2px dashed #e9ecef !important;
+}
+
+.movie-content-grid {
+  min-height: 400px;
+}
+
+/* Custom Scrollbar for better UX */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #dc3545;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a71d2a;
 }

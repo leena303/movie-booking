@@ -7,11 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { moviesService } from "@/services/movies";
 import { useState } from "react";
 
-interface Props {
-  movie: Movie;
-}
-
-export default function MovieCard({ movie }: Props) {
+export default function MovieCard(movie: Movie) {
   const router = useRouter();
   const { token } = useAuth();
 
