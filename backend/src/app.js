@@ -16,24 +16,23 @@ const allowedOrigins = [
   "https://movie-booking-cbxi.vercel.app",
 ];
 
-app.use(
-  cors({
-    origin: function (origin, callback) {
-      if (!origin) return callback(null, true);
+const corsOptions = {
+  origin(origin, callback) {
+    if (!origin) return callback(null, true);
 
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
 
-      return callback(new Error(`CORS blocked for origin: ${origin}`));
-    },
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-  }),
-);
+    return callback(new Error(`CORS blocked for origin: ${origin}`));
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+};
 
-app.options("*", cors());
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions));
 
 app.use(express.json());
 
@@ -49,5 +48,13 @@ app.use("/api/movies", movieRoutes);
 app.use("/api/showtimes", showtimeRoutes);
 app.use("/api/seats", seatRoutes);
 app.use("/api/bookings", bookingRoutes);
+
+// optional: để dễ debug lỗi CORS
+app.use((err, req, res, next) => {
+  if (err.message && err.message.includes("CORS blocked")) {
+    return res.status(403).json({ message: err.message });
+  }
+  next(err);
+});
 
 module.exports = app;
