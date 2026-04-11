@@ -1,13 +1,23 @@
 "use client";
+
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
+
+function useIsClient() {
+  return useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
+}
 
 export default function Navbar() {
   const { token, logout } = useAuth();
   const router = useRouter();
   const [openMemberMenu, setOpenMemberMenu] = useState(false);
+  const isClient = useIsClient();
 
   function handleMyTickets() {
     if (!token) {
@@ -72,11 +82,13 @@ export default function Navbar() {
             Vé của tôi
           </button>
 
-          {token ? (
+          {!isClient ? (
+            <div style={{ width: 180, height: 38 }} />
+          ) : token ? (
             <button
               onClick={() => {
                 logout();
-                alert("Đăng xuất thành công");
+                router.push("/login");
               }}
               className="btn btn-dark"
             >

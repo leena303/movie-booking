@@ -4,9 +4,10 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, UserPlus, BadgeCheck, Ticket } from "lucide-react";
 import Link from "next/link";
-import { authService } from "@/services/auth";
+import { useAuth } from "@/hooks/useAuth";
+import ProtectAuth from "@/components/auth/ProtectAuth";
 
-interface RegisterForm {
+interface RegisterFormData {
   name: string;
   email: string;
   phone: string;
@@ -16,10 +17,11 @@ interface RegisterForm {
   agreed: boolean;
 }
 
-export default function RegisterPage() {
+function RegisterForm() {
   const router = useRouter();
+  const { register } = useAuth();
 
-  const [form, setForm] = useState<RegisterForm>({
+  const [form, setForm] = useState<RegisterFormData>({
     name: "",
     email: "",
     phone: "",
@@ -51,9 +53,16 @@ export default function RegisterPage() {
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (loading) return;
 
-    if (!form.name || !form.email || !form.password) {
+    if (!form.name.trim() || !form.email.trim() || !form.password.trim()) {
       setMessage("Vui lòng nhập đầy đủ họ tên, email và mật khẩu");
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(form.email.trim())) {
+      setMessage("Email không hợp lệ");
       return;
     }
 
@@ -68,9 +77,7 @@ export default function RegisterPage() {
     }
 
     if (!form.agreed) {
-      setMessage(
-        "Vui lòng đánh dấu xác thực thông tin và đồng ý với điều khoản",
-      );
+      setMessage("Vui lòng đồng ý với điều khoản");
       return;
     }
 
@@ -78,19 +85,19 @@ export default function RegisterPage() {
       setLoading(true);
       setMessage("");
 
-      await authService.register({
-        name: form.name,
-        email: form.email,
-        phone: form.phone,
-        address: form.address,
+      await register({
+        name: form.name.trim(),
+        email: form.email.trim(),
+        phone: form.phone.trim(),
+        address: form.address.trim(),
         password: form.password,
       });
 
       setMessage("Đăng ký thành công, chuyển sang đăng nhập...");
 
       setTimeout(() => {
-        router.push("/login");
-      }, 1000);
+        router.replace("/login");
+      }, 700);
     } catch (err: unknown) {
       setMessage(err instanceof Error ? err.message : "Đăng ký thất bại");
     } finally {
@@ -233,7 +240,6 @@ export default function RegisterPage() {
                   {message && (
                     <div
                       className={`alert ${isSuccess ? "alert-success" : "alert-danger"} rounded-4 py-2 px-3`}
-                      style={{ fontSize: "0.92rem" }}
                     >
                       {message}
                     </div>
@@ -242,10 +248,7 @@ export default function RegisterPage() {
                   <form onSubmit={handleSubmit}>
                     <div className="row g-3">
                       <div className="col-md-6">
-                        <label
-                          className="form-label fw-semibold mb-2"
-                          style={{ fontSize: "0.92rem", color: "#243b64" }}
-                        >
+                        <label className="form-label fw-semibold mb-2">
                           Họ tên
                         </label>
                         <input
@@ -256,7 +259,6 @@ export default function RegisterPage() {
                           style={{
                             height: 48,
                             backgroundColor: "#eef2f7",
-                            fontSize: "0.95rem",
                             paddingLeft: 16,
                           }}
                           value={form.name}
@@ -265,10 +267,7 @@ export default function RegisterPage() {
                       </div>
 
                       <div className="col-md-6">
-                        <label
-                          className="form-label fw-semibold mb-2"
-                          style={{ fontSize: "0.92rem", color: "#243b64" }}
-                        >
+                        <label className="form-label fw-semibold mb-2">
                           Email
                         </label>
                         <input
@@ -279,7 +278,6 @@ export default function RegisterPage() {
                           style={{
                             height: 48,
                             backgroundColor: "#eef2f7",
-                            fontSize: "0.95rem",
                             paddingLeft: 16,
                           }}
                           value={form.email}
@@ -288,10 +286,7 @@ export default function RegisterPage() {
                       </div>
 
                       <div className="col-md-6">
-                        <label
-                          className="form-label fw-semibold mb-2"
-                          style={{ fontSize: "0.92rem", color: "#243b64" }}
-                        >
+                        <label className="form-label fw-semibold mb-2">
                           Số điện thoại
                         </label>
                         <input
@@ -302,7 +297,6 @@ export default function RegisterPage() {
                           style={{
                             height: 48,
                             backgroundColor: "#eef2f7",
-                            fontSize: "0.95rem",
                             paddingLeft: 16,
                           }}
                           value={form.phone}
@@ -311,10 +305,7 @@ export default function RegisterPage() {
                       </div>
 
                       <div className="col-md-6">
-                        <label
-                          className="form-label fw-semibold mb-2"
-                          style={{ fontSize: "0.92rem", color: "#243b64" }}
-                        >
+                        <label className="form-label fw-semibold mb-2">
                           Địa chỉ
                         </label>
                         <input
@@ -325,7 +316,6 @@ export default function RegisterPage() {
                           style={{
                             height: 48,
                             backgroundColor: "#eef2f7",
-                            fontSize: "0.95rem",
                             paddingLeft: 16,
                           }}
                           value={form.address}
@@ -334,10 +324,7 @@ export default function RegisterPage() {
                       </div>
 
                       <div className="col-md-6">
-                        <label
-                          className="form-label fw-semibold mb-2"
-                          style={{ fontSize: "0.92rem", color: "#243b64" }}
-                        >
+                        <label className="form-label fw-semibold mb-2">
                           Mật khẩu
                         </label>
                         <div className="position-relative">
@@ -349,7 +336,6 @@ export default function RegisterPage() {
                             style={{
                               height: 48,
                               backgroundColor: "#eef2f7",
-                              fontSize: "0.95rem",
                               paddingLeft: 16,
                               paddingRight: form.password ? 48 : 16,
                             }}
@@ -374,10 +360,7 @@ export default function RegisterPage() {
                       </div>
 
                       <div className="col-md-6">
-                        <label
-                          className="form-label fw-semibold mb-2"
-                          style={{ fontSize: "0.92rem", color: "#243b64" }}
-                        >
+                        <label className="form-label fw-semibold mb-2">
                           Xác nhận mật khẩu
                         </label>
                         <div className="position-relative">
@@ -389,7 +372,6 @@ export default function RegisterPage() {
                             style={{
                               height: 48,
                               backgroundColor: "#eef2f7",
-                              fontSize: "0.95rem",
                               paddingLeft: 16,
                               paddingRight: form.confirmPassword ? 48 : 16,
                             }}
@@ -431,7 +413,6 @@ export default function RegisterPage() {
                           <label
                             htmlFor="agreed"
                             className="form-check-label ms-2"
-                            style={{ fontSize: "0.92rem" }}
                           >
                             Tôi xác thực thông tin đã nhập là đúng và đồng ý với{" "}
                             <Link
@@ -454,7 +435,6 @@ export default function RegisterPage() {
                             height: 48,
                             backgroundColor: "#e11d48",
                             border: "none",
-                            fontSize: "0.95rem",
                           }}
                         >
                           {loading ? "Đang đăng ký..." : "Đăng ký"}
@@ -463,10 +443,7 @@ export default function RegisterPage() {
                     </div>
                   </form>
 
-                  <p
-                    className="text-center text-muted mt-4 mb-0"
-                    style={{ fontSize: "0.92rem" }}
-                  >
+                  <p className="text-center text-muted mt-4 mb-0">
                     Đã có tài khoản?{" "}
                     <Link
                       href="/login"
@@ -483,5 +460,13 @@ export default function RegisterPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <ProtectAuth requireAuth={false}>
+      <RegisterForm />
+    </ProtectAuth>
   );
 }

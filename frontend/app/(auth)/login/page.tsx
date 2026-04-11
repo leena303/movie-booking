@@ -4,19 +4,19 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Ticket, Film, ShieldCheck } from "lucide-react";
-import { authService } from "@/services/auth";
 import { useAuth } from "@/hooks/useAuth";
+import ProtectAuth from "@/components/auth/ProtectAuth";
 
-interface LoginForm {
+interface LoginFormData {
   email: string;
   password: string;
 }
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
-  const { setAuth } = useAuth();
+  const { login } = useAuth();
 
-  const [form, setForm] = useState<LoginForm>({
+  const [form, setForm] = useState<LoginFormData>({
     email: "",
     password: "",
   });
@@ -27,28 +27,49 @@ export default function LoginPage() {
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setLoading(true);
+    if (loading) return;
+
     setError("");
     setSuccess("");
 
-    try {
-      const data = await authService.login(form);
+    if (!form.email.trim() || !form.password.trim()) {
+      setError("Vui lòng nhập đầy đủ email và mật khẩu");
+      return;
+    }
 
-      setAuth(data.user, data.token);
-      setSuccess("Đăng nhập thành công");
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(form.email.trim())) {
+      setError("Email không hợp lệ");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const data = await login({
+        email: form.email.trim(),
+        password: form.password,
+      });
+
+      setSuccess("Đăng nhập thành công, đang chuyển trang...");
 
       setTimeout(() => {
         if (data.user.role === "admin") {
-          router.push("/admin");
+          router.replace("/admin");
         } else {
-          router.push("/");
+          router.replace("/");
         }
       }, 800);
     } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message);
+      const message = err instanceof Error ? err.message : "Đăng nhập thất bại";
+
+      if (
+        message.toLowerCase().includes("email hoặc mật khẩu không đúng") ||
+        message.toLowerCase().includes("invalid email or password")
+      ) {
+        setError("Email hoặc mật khẩu không đúng");
       } else {
-        setError("Đăng nhập thất bại");
+        setError(message);
       }
     } finally {
       setLoading(false);
@@ -186,29 +207,20 @@ export default function LoginPage() {
                   </div>
 
                   {error && (
-                    <div
-                      className="alert alert-danger rounded-4 py-2 px-3"
-                      style={{ fontSize: "0.92rem" }}
-                    >
+                    <div className="alert alert-danger rounded-4 py-2 px-3">
                       {error}
                     </div>
                   )}
 
                   {success && (
-                    <div
-                      className="alert alert-success rounded-4 py-2 px-3"
-                      style={{ fontSize: "0.92rem" }}
-                    >
+                    <div className="alert alert-success rounded-4 py-2 px-3">
                       {success}
                     </div>
                   )}
 
                   <form onSubmit={handleSubmit}>
                     <div className="mb-3">
-                      <label
-                        className="form-label fw-semibold mb-2"
-                        style={{ fontSize: "0.92rem", color: "#243b64" }}
-                      >
+                      <label className="form-label fw-semibold mb-2">
                         Email
                       </label>
                       <input
@@ -226,17 +238,13 @@ export default function LoginPage() {
                         style={{
                           height: 48,
                           backgroundColor: "#eef2f7",
-                          fontSize: "0.95rem",
                           paddingLeft: 16,
                         }}
                       />
                     </div>
 
                     <div className="mb-4">
-                      <label
-                        className="form-label fw-semibold mb-2"
-                        style={{ fontSize: "0.92rem", color: "#243b64" }}
-                      >
+                      <label className="form-label fw-semibold mb-2">
                         Mật khẩu
                       </label>
 
@@ -255,7 +263,6 @@ export default function LoginPage() {
                           style={{
                             height: 48,
                             backgroundColor: "#eef2f7",
-                            fontSize: "0.95rem",
                             paddingLeft: 16,
                             paddingRight: form.password ? 48 : 16,
                           }}
@@ -285,17 +292,13 @@ export default function LoginPage() {
                         height: 48,
                         backgroundColor: "#e11d48",
                         border: "none",
-                        fontSize: "0.95rem",
                       }}
                     >
                       {loading ? "Đang đăng nhập..." : "Đăng nhập"}
                     </button>
                   </form>
 
-                  <p
-                    className="text-center text-muted mt-4 mb-0"
-                    style={{ fontSize: "0.92rem" }}
-                  >
+                  <p className="text-center text-muted mt-4 mb-0">
                     Chưa có tài khoản?{" "}
                     <Link
                       href="/register"
@@ -312,5 +315,13 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <ProtectAuth requireAuth={false}>
+      <LoginForm />
+    </ProtectAuth>
   );
 }

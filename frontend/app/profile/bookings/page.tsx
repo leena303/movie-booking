@@ -4,25 +4,18 @@ import { useEffect, useState } from "react";
 import { bookingService } from "@/services/booking";
 import { BookingHistoryItem } from "@/types/booking";
 import { useAuth } from "@/hooks/useAuth";
+import ProtectAuth from "@/components/auth/ProtectAuth";
 
-export default function MyBookingsPage() {
-  const { token, loadToken } = useAuth();
+function MyBookingsContent() {
+  const { token } = useAuth();
   const [bookings, setBookings] = useState<BookingHistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    loadToken();
-  }, [loadToken]);
-
-  useEffect(() => {
     async function fetchBookings() {
       try {
-        if (!token) {
-          setLoading(false);
-          return;
-        }
-
+        // ProtectAuth đã đảm bảo user có token trước khi render component này
         const data = await bookingService.getMyBookings();
         setBookings(Array.isArray(data) ? data : []);
       } catch (err) {
@@ -32,18 +25,10 @@ export default function MyBookingsPage() {
       }
     }
 
-    fetchBookings();
+    if (token) {
+      fetchBookings();
+    }
   }, [token]);
-
-  if (!token) {
-    return (
-      <div className="container py-5">
-        <div className="alert alert-warning text-center">
-          Bạn cần đăng nhập để xem lịch sử vé.
-        </div>
-      </div>
-    );
-  }
 
   if (loading) {
     return (
@@ -119,5 +104,13 @@ export default function MyBookingsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function MyBookingsPage() {
+  return (
+    <ProtectAuth requireAuth={true}>
+      <MyBookingsContent />
+    </ProtectAuth>
   );
 }

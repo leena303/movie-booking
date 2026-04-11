@@ -1,72 +1,129 @@
-"use client";
+// "use client";
+// import { create } from "zustand";
+// import { User } from "@/types/user";
+// import {
+//   LoginPayload,
+//   RegisterPayload,
+//   AuthResponse,
+//   RegisterResponse,
+// } from "@/types/auth";
+// import { getToken, removeToken, saveToken } from "@/lib/utils/auth";
+// import { authService } from "@/services/auth";
+// interface AuthState {
+//   user: User | null;
+//   token: string | null;
+//   setAuth: (user: User, token: string) => void;
+//   setUser: (user: User | null) => void;
+//   login: (payload: LoginPayload) => Promise<AuthResponse>;
+//   register: (payload: RegisterPayload) => Promise<RegisterResponse>;
+//   logout: () => void;
+//   loadToken: () => void;
+// }
+// export const useAuthStore = create<AuthState>((set) => ({
+//   user: null,
+//   token: null,
+//   setAuth: (user, token) => {
+//     saveToken(token);
+//     set({ user, token });
+//   },
+//   setUser: (user) => {
+//     set({ user });
+//   },
+//   login: async (payload) => {
+//     const data = await authService.login(payload);
+//     const token = data?.token;
+//     const user = data?.user;
+//     if (token) {
+//       saveToken(token);
+//     }
+//     set({ token: token || null, user: user || null });
+//     return data;
+//   },
+//   register: async (payload) => {
+//     const data = await authService.register(payload);
+//     return data;
+//   },
+//   logout: () => {
+//     removeToken();
+//     set({ user: null, token: null });
+//   },
+//   loadToken: () => {
+//     const token = getToken();
+//     if (token) {
+//       set({ token });
+//     }
+//   },
+// }));
 
-import { create } from "zustand";
-import { User } from "@/types/user";
-import {
-  LoginPayload,
-  RegisterPayload,
-  AuthResponse,
-  RegisterResponse,
-} from "@/types/auth";
-import { getToken, removeToken, saveToken } from "@/lib/utils/auth";
-import { authService } from "@/services/auth";
+// // "use client";
 
-interface AuthState {
-  user: User | null;
-  token: string | null;
-  setAuth: (user: User, token: string) => void;
-  setUser: (user: User | null) => void;
-  login: (payload: LoginPayload) => Promise<AuthResponse>;
-  register: (payload: RegisterPayload) => Promise<RegisterResponse>;
-  logout: () => void;
-  loadToken: () => void;
-}
+// // import { create } from "zustand";
+// // import { User } from "@/types/user";
+// // import {
+// //   LoginPayload,
+// //   RegisterPayload,
+// //   AuthResponse,
+// //   RegisterResponse,
+// // } from "@/types/auth";
+// // import { getToken, removeToken, saveToken } from "@/lib/utils/auth";
+// // import { authService } from "@/services/auth";
 
-export const useAuthStore = create<AuthState>((set) => ({
-  user: null,
-  token: null,
+// // interface AuthState {
+// //   user: User | null;
+// //   token: string | null;
+// //   setAuth: (user: User, token: string) => void;
+// //   setUser: (user: User | null) => void;
+// //   login: (payload: LoginPayload) => Promise<AuthResponse>;
+// //   register: (payload: RegisterPayload) => Promise<RegisterResponse>;
+// //   logout: () => void;
+// //   loadToken: () => void;
+// // }
 
-  setAuth: (user, token) => {
-    saveToken(token);
-    set({ user, token });
-  },
+// // export const useAuthStore = create<AuthState>((set) => ({
+// //   user: null,
+// //   token: null,
 
-  setUser: (user) => {
-    set({ user });
-  },
+// //   setAuth: (user, token) => {
+// //     saveToken(token);
+// //     set({ user, token });
+// //   },
 
-  login: async (payload) => {
-    const data = await authService.login(payload);
+// //   setUser: (user) => {
+// //     set({ user });
+// //   },
 
-    const token = data?.token;
-    const user = data?.user;
+// //   login: async (payload) => {
+// //     const data = await authService.login(payload);
 
-    if (token) {
-      saveToken(token);
-    }
+// //     const token = data?.token;
+// //     const user = data?.user;
 
-    set({
-      token: token || null,
-      user: user || null,
-    });
+// //     if (token) {
+// //       saveToken(token);
+// //     }
 
-    return data;
-  },
+// //     set({
+// //       token: token || null,
+// //       user: user || null,
+// //     });
 
-  register: async (payload) => {
-    const data = await authService.register(payload);
-    return data;
-  },
+// //     return data;
+// //   },
 
-  logout: () => {
-    removeToken();
-    set({ user: null, token: null });
-  },
+// //   register: async (payload) => {
+// //     const data = await authService.register(payload);
+// //     return data;
+// //   },
 
-  loadToken: () => {
-    const token = getToken();
-    if (token) {
-      set({ token });
-    }
-  },
-}));
+// //   logout: () => {
+// //     removeToken();
+// //     set({ user: null, token: null });
+// //   },
+
+// //   loadToken: () => {
+// //     const token = getToken();
+// //     if (token) {
+// //       set({ token });
+// //     }
+// //   },
+// // }));
