@@ -1,7 +1,6 @@
 import { CreateBookingPayload, BookingHistoryItem } from "@/types/booking";
 import { createBookingApi, getMyBookingsApi } from "@/lib/api/bookings";
 
-/** Safely extract an array from axios response */
 function toArray<T>(res: { data: unknown }): T[] {
   const raw = (res.data as Record<string, unknown>)?.data ?? res.data;
   return Array.isArray(raw) ? (raw as T[]) : [];
