@@ -49,7 +49,6 @@ app.use("/api/showtimes", showtimeRoutes);
 app.use("/api/seats", seatRoutes);
 app.use("/api/bookings", bookingRoutes);
 
-// optional: để dễ debug lỗi CORS
 app.use((err, req, res, next) => {
   if (err.message && err.message.includes("CORS blocked")) {
     return res.status(403).json({ message: err.message });
