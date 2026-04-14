@@ -1,21 +1,36 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AdminBooking, UpdateBookingStatusPayload } from "@/types/admin";
 import { adminService } from "@/services/admin";
 
+type FilterStatus = "all" | "pending" | "confirmed" | "cancelled";
+
 export default function AdminBookingsPage() {
   const [bookings, setBookings] = useState<AdminBooking[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string>("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [updatingId, setUpdatingId] = useState<number | null>(null);
+  const [activeFilter, setActiveFilter] = useState<FilterStatus>("all");
+  const [selectedBooking, setSelectedBooking] = useState<AdminBooking | null>(
+    null,
+  );
 
   async function fetchBookings() {
     try {
       setLoading(true);
       setError("");
+
       const data = await adminService.getBookings();
-      setBookings(Array.isArray(data) ? data : []);
+      const list = Array.isArray(data) ? data : [];
+
+      list.sort(
+        (a, b) =>
+          new Date(b.created_at || 0).getTime() -
+          new Date(a.created_at || 0).getTime(),
+      );
+
+      setBookings(list);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Có lỗi xảy ra");
     } finally {
@@ -26,6 +41,26 @@ export default function AdminBookingsPage() {
   useEffect(() => {
     fetchBookings();
   }, []);
+
+  useEffect(() => {
+    function handleEsc(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setSelectedBooking(null);
+      }
+    }
+
+    if (selectedBooking) {
+      document.addEventListener("keydown", handleEsc);
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "auto";
+    }
+
+    return () => {
+      document.removeEventListener("keydown", handleEsc);
+      document.body.style.overflow = "auto";
+    };
+  }, [selectedBooking]);
 
   async function handleChangeStatus(
     bookingId: number,
@@ -42,197 +77,397 @@ export default function AdminBookingsPage() {
           item.booking_id === bookingId ? { ...item, status } : item,
         ),
       );
+
+      setSelectedBooking((prev) =>
+        prev && prev.booking_id === bookingId ? { ...prev, status } : prev,
+      );
     } catch (err: unknown) {
       setError(
-        err instanceof Error
-          ? err.message
-          : "Cập nhật trạng thái booking thất bại",
+        err instanceof Error ? err.message : "Cập nhật trạng thái thất bại",
       );
     } finally {
       setUpdatingId(null);
     }
   }
 
+  function statusText(status: string) {
+    switch (status) {
+      case "confirmed":
+        return "Đã xác nhận";
+      case "pending":
+        return "Chờ xác nhận";
+      case "cancelled":
+        return "Đã hủy";
+      default:
+        return status;
+    }
+  }
+
+  function statusClass(status: string) {
+    switch (status) {
+      case "confirmed":
+        return "bg-success";
+      case "pending":
+        return "bg-warning text-dark";
+      case "cancelled":
+        return "bg-danger";
+      default:
+        return "bg-secondary";
+    }
+  }
+
+  function formatDateTime(value?: string) {
+    if (!value) return "N/A";
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "N/A";
+
+    return date.toLocaleString("vi-VN");
+  }
+
+  const filteredBookings = useMemo(() => {
+    if (activeFilter === "all") return bookings;
+    return bookings.filter((b) => b.status === activeFilter);
+  }, [bookings, activeFilter]);
+
   return (
-    <div>
-      <h2 className="mb-4">Quản lý vé</h2>
+    <>
+      <div>
+        <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+          <h2 className="mb-0">Quản lý vé</h2>
 
-      {loading && (
-        <div className="alert alert-secondary">Đang tải dữ liệu...</div>
-      )}
-      {error && <div className="alert alert-danger">{error}</div>}
+          <div className="d-flex flex-wrap gap-2">
+            <button
+              type="button"
+              className={`btn btn-sm ${activeFilter === "all" ? "btn-dark" : "btn-outline-dark"}`}
+              onClick={() => setActiveFilter("all")}
+            >
+              Tất cả
+            </button>
 
-      {!loading && !error && (
-        <div className="card border-0 shadow-sm">
-          <div className="card-body p-0">
-            <div className="table-responsive">
-              <table className="table table-hover align-middle mb-0">
-                <thead className="table-light">
-                  <tr>
-                    <th>Phim</th>
-                    <th>Người dùng</th>
-                    <th>Giá</th>
-                    <th>Trạng thái</th>
-                    <th>Cập nhật</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {bookings.length > 0 ? (
-                    bookings.map((b) => (
-                      <tr key={b.booking_id}>
-                        <td className="fw-semibold">{b.movie_title}</td>
-                        <td>{b.user_name || b.email || "N/A"}</td>
-                        <td>
-                          {Number(b.total_price).toLocaleString("vi-VN")}đ
-                        </td>
-                        <td>
-                          <span
-                            className={`badge ${
-                              b.status === "confirmed"
-                                ? "bg-success"
-                                : b.status === "pending"
-                                  ? "bg-warning text-dark"
-                                  : "bg-danger"
-                            }`}
-                          >
-                            {b.status === "confirmed"
-                              ? "Đã xác nhận"
-                              : b.status === "pending"
-                                ? "Chờ xác nhận"
-                                : "Đã hủy"}
-                          </span>
-                        </td>
-                        <td style={{ minWidth: 180 }}>
-                          <select
-                            className="form-select form-select-sm"
-                            value={b.status}
-                            disabled={updatingId === b.booking_id}
-                            onChange={(e) =>
-                              handleChangeStatus(
-                                b.booking_id,
-                                e.target
-                                  .value as UpdateBookingStatusPayload["status"],
-                              )
-                            }
-                          >
-                            <option value="pending">Chờ xác nhận</option>
-                            <option value="confirmed">Đã xác nhận</option>
-                            <option value="cancelled">Đã hủy</option>
-                          </select>
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={5} className="text-center text-muted py-4">
-                        Chưa có vé nào
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+            <button
+              type="button"
+              className={`btn btn-sm ${activeFilter === "pending" ? "btn-warning" : "btn-outline-warning"}`}
+              onClick={() => setActiveFilter("pending")}
+            >
+              Chờ xác nhận
+            </button>
+
+            <button
+              type="button"
+              className={`btn btn-sm ${activeFilter === "confirmed" ? "btn-success" : "btn-outline-success"}`}
+              onClick={() => setActiveFilter("confirmed")}
+            >
+              Đã xác nhận
+            </button>
+
+            <button
+              type="button"
+              className={`btn btn-sm ${activeFilter === "cancelled" ? "btn-danger" : "btn-outline-danger"}`}
+              onClick={() => setActiveFilter("cancelled")}
+            >
+              Đã hủy
+            </button>
           </div>
         </div>
+
+        {loading && (
+          <div className="alert alert-secondary">Đang tải dữ liệu...</div>
+        )}
+
+        {error && <div className="alert alert-danger">{error}</div>}
+
+        {!loading && !error && (
+          <div className="card border-0 shadow-sm">
+            <div className="card-body p-0">
+              <div className="table-responsive">
+                <table className="table table-hover align-middle mb-0">
+                  <thead className="table-light">
+                    <tr>
+                      <th>#</th>
+                      <th>Phim</th>
+                      <th>Người dùng</th>
+                      <th>Ngày đặt</th>
+                      <th>Giá</th>
+                      <th>Trạng thái</th>
+                      <th style={{ minWidth: 220 }}>Thao tác nhanh</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {filteredBookings.length > 0 ? (
+                      filteredBookings.map((b, index) => (
+                        <tr
+                          key={`${b.booking_id ?? "missing"}-${b.created_at ?? "no-date"}-${index}`}
+                          style={{ cursor: "pointer" }}
+                          onClick={() => setSelectedBooking(b)}
+                        >
+                          <td>{index + 1}</td>
+
+                          <td className="fw-semibold">
+                            {b.movie_title || "N/A"}
+                          </td>
+
+                          <td>{b.user_name || b.email || "N/A"}</td>
+
+                          <td>{formatDateTime(b.created_at)}</td>
+
+                          <td>
+                            {Number(b.total_price || 0).toLocaleString("vi-VN")}
+                            đ
+                          </td>
+
+                          <td>
+                            <span className={`badge ${statusClass(b.status)}`}>
+                              {statusText(b.status)}
+                            </span>
+                          </td>
+
+                          <td onClick={(e) => e.stopPropagation()}>
+                            <div className="d-flex gap-2 flex-wrap">
+                              <button
+                                type="button"
+                                className="btn btn-sm btn-success"
+                                disabled={
+                                  updatingId === b.booking_id ||
+                                  b.status === "confirmed"
+                                }
+                                onClick={() =>
+                                  handleChangeStatus(b.booking_id, "confirmed")
+                                }
+                              >
+                                ✔ Xác nhận
+                              </button>
+
+                              <button
+                                type="button"
+                                className="btn btn-sm btn-danger"
+                                disabled={
+                                  updatingId === b.booking_id ||
+                                  b.status === "cancelled"
+                                }
+                                onClick={() =>
+                                  handleChangeStatus(b.booking_id, "cancelled")
+                                }
+                              >
+                                ❌ Hủy
+                              </button>
+
+                              {updatingId === b.booking_id && (
+                                <span className="text-muted small align-self-center">
+                                  Đang cập nhật...
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={7} className="text-center text-muted py-4">
+                          Chưa có vé nào
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {selectedBooking && (
+        <>
+          <div
+            className="position-fixed top-0 start-0 w-100 h-100"
+            style={{
+              backgroundColor: "rgba(0, 0, 0, 0.45)",
+              backdropFilter: "blur(3px)",
+              WebkitBackdropFilter: "blur(3px)",
+              zIndex: 1040,
+            }}
+            onClick={() => setSelectedBooking(null)}
+          />
+
+          <div
+            className="position-fixed top-50 start-50 translate-middle w-100 px-3"
+            style={{ maxWidth: 760, zIndex: 1050 }}
+          >
+            <div
+              className="card border-0 shadow-lg"
+              style={{ borderRadius: 16 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="card-body p-4">
+                <div className="d-flex justify-content-between align-items-center mb-3">
+                  <h4 className="mb-0">Chi tiết booking</h4>
+
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-outline-secondary"
+                    onClick={() => setSelectedBooking(null)}
+                  >
+                    Đóng
+                  </button>
+                </div>
+
+                <div className="row g-3">
+                  <div className="col-md-6">
+                    <label className="form-label">Phim</label>
+                    <input
+                      className="form-control"
+                      value={selectedBooking.movie_title || "N/A"}
+                      readOnly
+                      disabled
+                    />
+                  </div>
+
+                  <div className="col-md-6">
+                    <label className="form-label">Người dùng</label>
+                    <input
+                      className="form-control"
+                      value={
+                        selectedBooking.user_name ||
+                        selectedBooking.email ||
+                        "N/A"
+                      }
+                      readOnly
+                      disabled
+                    />
+                  </div>
+
+                  <div className="col-md-6">
+                    <label className="form-label">Email</label>
+                    <input
+                      className="form-control"
+                      value={selectedBooking.email || "N/A"}
+                      readOnly
+                      disabled
+                    />
+                  </div>
+
+                  <div className="col-md-6">
+                    <label className="form-label">Ngày đặt vé</label>
+                    <input
+                      className="form-control"
+                      value={formatDateTime(selectedBooking.created_at)}
+                      readOnly
+                      disabled
+                    />
+                  </div>
+
+                  <div className="col-md-6">
+                    <label className="form-label">Suất chiếu</label>
+                    <input
+                      className="form-control"
+                      value={formatDateTime(selectedBooking.start_time)}
+                      readOnly
+                      disabled
+                    />
+                  </div>
+
+                  <div className="col-md-6">
+                    <label className="form-label">Phòng</label>
+                    <input
+                      className="form-control"
+                      value={selectedBooking.room_name || "N/A"}
+                      readOnly
+                      disabled
+                    />
+                  </div>
+
+                  <div className="col-md-6">
+                    <label className="form-label">Ghế</label>
+                    <input
+                      className="form-control"
+                      value={selectedBooking.seat_names || "Chưa có dữ liệu"}
+                      readOnly
+                      disabled
+                    />
+                  </div>
+
+                  <div className="col-md-6">
+                    <label className="form-label">Thanh toán</label>
+                    <input
+                      className="form-control"
+                      value={
+                        selectedBooking.payment_method || "Chưa có dữ liệu"
+                      }
+                      readOnly
+                      disabled
+                    />
+                  </div>
+
+                  <div className="col-md-6">
+                    <label className="form-label">Tổng tiền</label>
+                    <input
+                      className="form-control"
+                      value={`${Number(selectedBooking.total_price || 0).toLocaleString("vi-VN")}đ`}
+                      readOnly
+                      disabled
+                    />
+                  </div>
+
+                  <div className="col-md-6">
+                    <label className="form-label">Trạng thái</label>
+                    <input
+                      className="form-control"
+                      value={statusText(selectedBooking.status)}
+                      readOnly
+                      disabled
+                    />
+                  </div>
+                </div>
+
+                <div className="d-flex gap-2 mt-4">
+                  <button
+                    type="button"
+                    className="btn btn-success"
+                    disabled={
+                      updatingId === selectedBooking.booking_id ||
+                      selectedBooking.status === "confirmed"
+                    }
+                    onClick={() =>
+                      handleChangeStatus(
+                        selectedBooking.booking_id,
+                        "confirmed",
+                      )
+                    }
+                  >
+                    ✔ Xác nhận
+                  </button>
+
+                  <button
+                    type="button"
+                    className="btn btn-danger"
+                    disabled={
+                      updatingId === selectedBooking.booking_id ||
+                      selectedBooking.status === "cancelled"
+                    }
+                    onClick={() =>
+                      handleChangeStatus(
+                        selectedBooking.booking_id,
+                        "cancelled",
+                      )
+                    }
+                  >
+                    ❌ Hủy
+                  </button>
+
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => setSelectedBooking(null)}
+                  >
+                    Đóng
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
       )}
-    </div>
+    </>
   );
 }
-
-// "use client";
-
-// import { useEffect, useState } from "react";
-// import { AdminBooking } from "@/types/admin";
-// import { adminService } from "@/services/admin";
-
-// export default function AdminBookingsPage() {
-//   const [bookings, setBookings] = useState<AdminBooking[]>([]);
-//   const [loading, setLoading] = useState<boolean>(true);
-//   const [error, setError] = useState<string>("");
-
-//   useEffect(() => {
-//     async function fetchBookings() {
-//       try {
-//         setLoading(true);
-//         setError("");
-//         const data = await adminService.getBookings();
-
-//         console.log("bookings data:", data);
-
-//         setBookings(Array.isArray(data) ? data : []);
-//       } catch (err: unknown) {
-//         setError(err instanceof Error ? err.message : "Có lỗi xảy ra");
-//       } finally {
-//         setLoading(false);
-//       }
-//     }
-
-//     fetchBookings();
-//   }, []);
-
-//   return (
-//     <div>
-//       <h2 className="mb-4">Quản lý vé</h2>
-
-//       {loading && (
-//         <div className="alert alert-secondary">Đang tải dữ liệu...</div>
-//       )}
-//       {error && <div className="alert alert-danger">{error}</div>}
-
-//       {!loading && !error && (
-//         <div className="card border-0 shadow-sm">
-//           <div className="card-body p-0">
-//             <div className="table-responsive">
-//               <table className="table table-hover align-middle mb-0">
-//                 <thead className="table-light">
-//                   <tr>
-//                     <th>Phim</th>
-//                     <th>Người dùng</th>
-//                     <th>Giá</th>
-//                     <th>Trạng thái</th>
-//                   </tr>
-//                 </thead>
-//                 <tbody>
-//                   {bookings.length > 0 ? (
-//                     bookings.map((b, index) => (
-//                       <tr key={`${b.booking_id ?? "missing"}-${index}`}>
-//                         <td className="fw-semibold">{b.movie_title}</td>
-//                         <td>{b.user_name || b.email || "N/A"}</td>
-//                         <td>
-//                           {Number(b.total_price).toLocaleString("vi-VN")}đ
-//                         </td>
-//                         <td>
-//                           <span
-//                             className={`badge ${
-//                               b.status === "confirmed"
-//                                 ? "bg-success"
-//                                 : b.status === "pending"
-//                                   ? "bg-warning text-dark"
-//                                   : "bg-danger"
-//                             }`}
-//                           >
-//                             {b.status === "confirmed"
-//                               ? "Đã xác nhận"
-//                               : b.status === "pending"
-//                                 ? "Đang chờ"
-//                                 : "Đã hủy"}
-//                           </span>
-//                         </td>
-//                       </tr>
-//                     ))
-//                   ) : (
-//                     <tr>
-//                       <td colSpan={4} className="text-center text-muted py-4">
-//                         Chưa có vé nào
-//                       </td>
-//                     </tr>
-//                   )}
-//                 </tbody>
-//               </table>
-//             </div>
-//           </div>
-//         </div>
-//       )}
-//     </div>
-//   );
-// }
