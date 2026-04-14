@@ -1,5 +1,33 @@
 import axios from "axios";
 
+function getStoredToken(): string | null {
+  if (typeof window === "undefined") return null;
+
+  const directToken =
+    localStorage.getItem("token") ||
+    localStorage.getItem("accessToken") ||
+    localStorage.getItem("auth_token");
+
+  if (directToken) {
+    return directToken.replace(/^"|"$/g, "");
+  }
+
+  const authUserRaw = localStorage.getItem("auth_user");
+  if (authUserRaw) {
+    try {
+      const authUser = JSON.parse(authUserRaw);
+      const nestedToken =
+        authUser?.token || authUser?.accessToken || authUser?.access_token;
+
+      if (nestedToken && typeof nestedToken === "string") {
+        return nestedToken.replace(/^"|"$/g, "");
+      }
+    } catch {}
+  }
+
+  return null;
+}
+
 const axiosInstance = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL,
   headers: {
@@ -9,12 +37,13 @@ const axiosInstance = axios.create({
 
 axiosInstance.interceptors.request.use(
   (config) => {
-    if (typeof window !== "undefined") {
-      const token = localStorage.getItem("token");
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
+    const token = getStoredToken();
+
+    if (token) {
+      config.headers = config.headers ?? {};
+      config.headers.Authorization = `Bearer ${token}`;
     }
+
     return config;
   },
   (error) => Promise.reject(error),
@@ -37,6 +66,7 @@ axiosInstance.interceptors.response.use(
         : "Đã xảy ra lỗi";
 
     const isLoginRequest = url.includes("/auth/login");
+    const isAdminRequest = url.includes("/admin");
 
     switch (status) {
       case 400:
@@ -50,7 +80,13 @@ axiosInstance.interceptors.response.use(
 
         if (typeof window !== "undefined") {
           localStorage.removeItem("token");
+          localStorage.removeItem("accessToken");
+          localStorage.removeItem("auth_token");
           localStorage.removeItem("auth_user");
+
+          if (isAdminRequest && window.location.pathname.startsWith("/admin")) {
+            window.location.href = "/login";
+          }
         }
         break;
 
