@@ -6,6 +6,11 @@ export interface BookingHistoryItem {
   movie_title: string;
   start_time: string;
   room_name: string;
+  seat_names?: string;
+  name?: string;
+  phone?: string;
+  email?: string;
+  payment_method?: string;
 }
 
 export type CreateBookingPayload = {
