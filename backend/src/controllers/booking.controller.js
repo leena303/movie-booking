@@ -101,6 +101,7 @@ const bookingController = {
         data: {
           bookingId,
           totalPrice,
+          status: "pending",
           seats: seatPrices.map((seat) => ({
             id: seat.seatId,
             seatLabel: `${seat.row_label}${seat.col_number}`,
