@@ -1,17 +1,16 @@
 "use client";
 
 import { useSearchParams, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState, Suspense } from "react";
+import { useEffect, useState } from "react";
 import { bookingService } from "@/services/booking";
 import { useAuth } from "@/hooks/useAuth";
-import ProtectAuth from "@/components/auth/ProtectAuth";
 
-function PaymentPageContent() {
+export default function PaymentPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { token } = useAuth();
 
-  const [showtimeId, setShowtimeId] = useState<number | null>(null);
+  const [showtimeId, setShowtimeId] = useState<number>(0);
   const [seatIds, setSeatIds] = useState<number[]>([]);
 
   const [name, setName] = useState("");
@@ -27,32 +26,16 @@ function PaymentPageContent() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const stIdRaw = searchParams.get("showtimeId");
-    const seatsRaw = searchParams.get("seats");
+    const stId = Number(searchParams.get("showtimeId"));
+    const seats = searchParams.get("seats");
 
-    const parsedShowtimeId =
-      stIdRaw && !Number.isNaN(Number(stIdRaw)) ? Number(stIdRaw) : null;
-
-    const parsedSeatIds =
-      seatsRaw
-        ?.split(",")
-        .map((item) => Number(item))
-        .filter((item) => Number.isInteger(item) && item > 0) ?? [];
-
-    setShowtimeId(parsedShowtimeId);
-    setSeatIds(parsedSeatIds);
+    if (stId && seats) {
+      setShowtimeId(stId);
+      setSeatIds(seats.split(",").map(Number));
+    }
   }, [searchParams]);
 
-  const isBookingPayloadValid = useMemo(() => {
-    return !!showtimeId && seatIds.length > 0;
-  }, [showtimeId, seatIds]);
-
   function validate() {
-    if (!isBookingPayloadValid) {
-      alert("Thông tin suất chiếu hoặc ghế không hợp lệ");
-      return false;
-    }
-
     if (!name.trim() || !phone.trim() || !email.trim()) {
       alert("Vui lòng nhập đầy đủ thông tin");
       return false;
@@ -99,21 +82,19 @@ function PaymentPageContent() {
       setLoading(true);
 
       await bookingService.createBooking({
-        showtimeId: Number(showtimeId),
+        showtimeId,
         seatIds,
-        name: name.trim(),
-        phone: phone.trim(),
-        email: email.trim(),
+        name,
+        phone,
+        email,
         paymentMethod,
-        cardNumber: cardNumber.trim(),
-        ticketDelivery,
-        note: note.trim(),
+        cardNumber,
+        note,
       });
 
       alert("Thanh toán thành công!");
       router.push("/profile/bookings");
-    } catch (error: unknown) {
-      console.error("Create booking failed:", error);
+    } catch (error) {
       alert(error instanceof Error ? error.message : "Thanh toán thất bại");
     } finally {
       setLoading(false);
@@ -144,7 +125,7 @@ function PaymentPageContent() {
                       <div className="bg-body-tertiary rounded-4 p-3 mb-3">
                         <div className="d-flex justify-content-between mb-2">
                           <span className="text-muted">Showtime ID</span>
-                          <strong>{showtimeId ?? "--"}</strong>
+                          <strong>{showtimeId || "--"}</strong>
                         </div>
 
                         <div className="d-flex justify-content-between mb-2">
@@ -174,6 +155,8 @@ function PaymentPageContent() {
                       <div className="alert alert-warning rounded-4 mb-0">
                         <small>
                           Vui lòng kiểm tra kỹ thông tin trước khi thanh toán.
+                          Vé sau khi xác nhận có thể được gửi theo hình thức bạn
+                          đã chọn.
                         </small>
                       </div>
                     </div>
@@ -317,7 +300,8 @@ function PaymentPageContent() {
                               className="form-check-label text-muted"
                               htmlFor="agreeTerms"
                             >
-                              Tôi đồng ý với điều khoản thanh toán
+                              Tôi đồng ý với điều khoản thanh toán và xác nhận
+                              thông tin đã nhập là chính xác
                             </label>
                           </div>
                         </div>
@@ -325,10 +309,17 @@ function PaymentPageContent() {
                         <div className="col-12 d-grid mt-3">
                           <button
                             onClick={handlePayment}
-                            disabled={loading || !isBookingPayloadValid}
+                            disabled={loading}
                             className="btn btn-danger rounded-3 py-2 fw-semibold"
                           >
-                            {loading ? "Đang xử lý..." : "Xác nhận thanh toán"}
+                            {loading ? (
+                              <>
+                                <span className="spinner-border spinner-border-sm me-2" />
+                                Đang xử lý...
+                              </>
+                            ) : (
+                              "Xác nhận thanh toán"
+                            )}
                           </button>
                         </div>
                       </div>
@@ -346,23 +337,5 @@ function PaymentPageContent() {
         </div>
       </div>
     </div>
-  );
-}
-
-export default function PaymentPage() {
-  return (
-    <ProtectAuth requireAuth={true}>
-      <Suspense
-        fallback={
-          <div className="container py-5 text-center">
-            <div className="spinner-border text-danger" role="status">
-              <span className="visually-hidden">Loading...</span>
-            </div>
-          </div>
-        }
-      >
-        <PaymentPageContent />
-      </Suspense>
-    </ProtectAuth>
   );
 }
