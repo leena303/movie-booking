@@ -15,7 +15,6 @@ function MyBookingsContent() {
   useEffect(() => {
     async function fetchBookings() {
       try {
-        // ProtectAuth đã đảm bảo user có token trước khi render component này
         const data = await bookingService.getMyBookings();
         setBookings(Array.isArray(data) ? data : []);
       } catch (err) {
