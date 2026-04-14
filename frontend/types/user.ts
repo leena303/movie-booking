@@ -10,6 +10,9 @@ export interface User {
 export interface UserForm {
   name: string;
   email: string;
+  phone?: string;
+  address?: string;
   role: string;
   password: string;
+  confirmPassword?: string;
 }
