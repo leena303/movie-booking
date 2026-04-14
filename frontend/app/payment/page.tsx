@@ -1,11 +1,11 @@
 "use client";
 
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
 import { bookingService } from "@/services/booking";
 import { useAuth } from "@/hooks/useAuth";
 
-export default function PaymentPage() {
+function PaymentContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { token } = useAuth();
@@ -31,7 +31,12 @@ export default function PaymentPage() {
 
     if (stId && seats) {
       setShowtimeId(stId);
-      setSeatIds(seats.split(",").map(Number));
+      setSeatIds(
+        seats
+          .split(",")
+          .map((seat) => Number(seat))
+          .filter((seat) => !Number.isNaN(seat)),
+      );
     }
   }, [searchParams]);
 
@@ -66,6 +71,11 @@ export default function PaymentPage() {
       return false;
     }
 
+    if (!showtimeId || seatIds.length === 0) {
+      alert("Thiếu thông tin suất chiếu hoặc ghế");
+      return false;
+    }
+
     return true;
   }
 
@@ -89,6 +99,7 @@ export default function PaymentPage() {
         email,
         paymentMethod,
         cardNumber,
+        ticketDelivery,
         note,
       });
 
@@ -308,6 +319,7 @@ export default function PaymentPage() {
 
                         <div className="col-12 d-grid mt-3">
                           <button
+                            type="button"
                             onClick={handlePayment}
                             disabled={loading}
                             className="btn btn-danger rounded-3 py-2 fw-semibold"
@@ -337,5 +349,17 @@ export default function PaymentPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function PaymentPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="container py-5">Đang tải trang thanh toán...</div>
+      }
+    >
+      <PaymentContent />
+    </Suspense>
   );
 }
