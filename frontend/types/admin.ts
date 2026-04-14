@@ -27,6 +27,7 @@ export interface AdminShowtime {
   price: number;
   movie_title?: string;
   room_name?: string;
+  booked_seats_count?: number;
 }
 
 export interface AdminRoom {
@@ -49,11 +50,18 @@ export interface AdminBooking {
   total_price: number;
   status: "pending" | "confirmed" | "cancelled";
   created_at: string;
+
   movie_title: string;
   start_time: string;
   room_name: string;
+
   user_name?: string;
   email?: string;
+  phone?: string;
+
+  seat_names?: string;
+  payment_method?: string;
+  payment_status?: string;
 }
 
 export interface CreateMoviePayload {
