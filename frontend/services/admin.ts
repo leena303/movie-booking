@@ -69,6 +69,10 @@ import {
   getAdminBookingsApi,
   updateAdminBookingStatusApi,
   getAdminShowtimesApi,
+  getAdminRoomsApi,
+  createAdminShowtimeApi,
+  updateAdminShowtimeApi,
+  deleteAdminShowtimeApi,
 } from "@/lib/api/admin";
 
 import {
@@ -80,9 +84,10 @@ import {
   UpdateBookingStatusPayload,
 } from "@/types/admin";
 
+import { AdminRoom, CreateShowtimePayload } from "@/types/admin";
+
 import { UserForm } from "@/types/user";
 
-/** Safely extract an array from axios response */
 function toArray<T>(res: { data: unknown }): T[] {
   const raw = (res.data as Record<string, unknown>)?.data ?? res.data;
   return Array.isArray(raw) ? (raw as T[]) : [];
@@ -145,5 +150,28 @@ export const adminService = {
   async getShowtimes(): Promise<AdminShowtime[]> {
     const res = await getAdminShowtimesApi();
     return toArray<AdminShowtime>(res);
+  },
+
+  async getRooms(): Promise<AdminRoom[]> {
+    const res = await getAdminRoomsApi();
+    return toArray<AdminRoom>(res);
+  },
+
+  async createShowtime(payload: CreateShowtimePayload) {
+    const res = await createAdminShowtimeApi(payload);
+    return res.data;
+  },
+
+  async updateShowtime(
+    showtimeId: number,
+    payload: Partial<CreateShowtimePayload>,
+  ) {
+    const res = await updateAdminShowtimeApi(showtimeId, payload);
+    return res.data;
+  },
+
+  async deleteShowtime(showtimeId: number) {
+    const res = await deleteAdminShowtimeApi(showtimeId);
+    return res.data;
   },
 };
