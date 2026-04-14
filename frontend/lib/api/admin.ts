@@ -1,6 +1,7 @@
 import axiosInstance from "@/lib/axios";
 import { CreateMoviePayload, UpdateBookingStatusPayload } from "@/types/admin";
 import { UserForm } from "@/types/user";
+import { CreateShowtimePayload } from "@/types/admin";
 
 // USERS
 export function getAdminUsersApi() {
@@ -54,4 +55,23 @@ export function updateAdminBookingStatusApi(
 // SHOWTIMES
 export function getAdminShowtimesApi() {
   return axiosInstance.get("/admin/showtimes");
+}
+
+export function getAdminRoomsApi() {
+  return axiosInstance.get("/admin/rooms");
+}
+
+export function createAdminShowtimeApi(payload: CreateShowtimePayload) {
+  return axiosInstance.post("/admin/showtimes", payload);
+}
+
+export function updateAdminShowtimeApi(
+  showtimeId: number,
+  payload: Partial<CreateShowtimePayload>,
+) {
+  return axiosInstance.put(`/admin/showtimes/${showtimeId}`, payload);
+}
+
+export function deleteAdminShowtimeApi(showtimeId: number) {
+  return axiosInstance.delete(`/admin/showtimes/${showtimeId}`);
 }
