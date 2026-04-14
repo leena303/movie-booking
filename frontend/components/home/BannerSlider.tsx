@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 
 const banners = [
   {
@@ -63,16 +64,23 @@ export default function BannerSlider() {
         className="position-relative overflow-hidden rounded-4 shadow"
         style={{
           minHeight: "460px",
-          backgroundImage: `url(${currentBanner.image})`,
-          backgroundSize: "cover",
-          backgroundPosition: "center",
         }}
       >
+        <Image
+          src={currentBanner.image}
+          alt={currentBanner.title}
+          fill
+          priority
+          className="object-fit-cover"
+          style={{ zIndex: 0 }}
+        />
+
         <div
           className="position-absolute top-0 start-0 w-100 h-100"
           style={{
             background:
               "linear-gradient(90deg, rgba(0,0,0,0.78) 0%, rgba(0,0,0,0.55) 45%, rgba(0,0,0,0.25) 100%)",
+            zIndex: 1,
           }}
         />
 
