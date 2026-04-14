@@ -11,6 +11,28 @@ interface MovieCardProps {
   onBook: (movie: Movie) => void;
 }
 
+function getPosterSrc(posterUrl?: string) {
+  if (!posterUrl || !posterUrl.trim()) {
+    return "/images/movie-placeholder.jpg";
+  }
+
+  const value = posterUrl.trim();
+
+  if (value.startsWith("http://") || value.startsWith("https://")) {
+    return value;
+  }
+
+  if (value.startsWith("/")) {
+    return value;
+  }
+
+  if (value.startsWith("images/")) {
+    return `/${value}`;
+  }
+
+  return `/images/${value}`;
+}
+
 export default function MovieCard({
   movie,
   isDimmed = false,
@@ -18,6 +40,7 @@ export default function MovieCard({
   onBook,
 }: MovieCardProps) {
   const router = useRouter();
+  const posterSrc = getPosterSrc(movie.poster_url);
 
   return (
     <div
@@ -32,10 +55,11 @@ export default function MovieCard({
     >
       <div className="position-relative" style={{ height: 320 }}>
         <Image
-          src={movie.poster_url || "/images/movie-placeholder.jpg"}
+          src={posterSrc}
           alt={movie.title}
           fill
           className="object-fit-cover rounded-top"
+          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
         />
 
         <span
@@ -55,7 +79,7 @@ export default function MovieCard({
         </h5>
 
         <p className="mb-1 small text-muted">
-          <strong>Đạo diễn:</strong> {movie.director}
+          <strong>Đạo diễn:</strong> {movie.director || "Chưa cập nhật"}
         </p>
 
         <p className="mb-1 small text-muted">
@@ -68,6 +92,7 @@ export default function MovieCard({
 
         <div className="d-flex gap-2 mt-auto">
           <button
+            type="button"
             className="btn btn-outline-danger btn-sm w-100"
             onClick={() => router.push(`/movies/${movie.id}`)}
           >
@@ -75,6 +100,7 @@ export default function MovieCard({
           </button>
 
           <button
+            type="button"
             className="btn btn-danger btn-sm w-100"
             onClick={() => onBook(movie)}
             disabled={movie.status !== "now_showing"}
