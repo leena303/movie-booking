@@ -5,11 +5,18 @@ import { AdminMovie, AdminRoom, AdminShowtime } from "@/types/admin";
 import { adminService } from "@/services/admin";
 
 type ModalMode = "create" | "edit" | "view" | null;
+type ShowtimeStatus = "all" | "upcoming" | "showing" | "ended";
 
 type ShowtimeForm = {
   movie_id: number | "";
   room_id: number | "";
   start_time: string;
+};
+
+type ShowtimeMovieGroup = {
+  movie_id: number;
+  movie_title: string;
+  showtimes: AdminShowtime[];
 };
 
 const initialForm: ShowtimeForm = {
@@ -30,11 +37,13 @@ export default function AdminShowtimesPage() {
   const [modalMode, setModalMode] = useState<ModalMode>(null);
   const [selectedShowtime, setSelectedShowtime] =
     useState<AdminShowtime | null>(null);
+  const [selectedMovieGroup, setSelectedMovieGroup] =
+    useState<ShowtimeMovieGroup | null>(null);
   const [form, setForm] = useState<ShowtimeForm>(initialForm);
 
-  const [movieFilter, setMovieFilter] = useState<string>("all");
-  const [roomFilter, setRoomFilter] = useState<string>("all");
-  const [dateFilter, setDateFilter] = useState<string>("");
+  const [searchKeyword, setSearchKeyword] = useState("");
+  const [dateFilter, setDateFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState<ShowtimeStatus>("all");
 
   async function fetchData() {
     try {
@@ -87,6 +96,32 @@ export default function AdminShowtimesPage() {
     return new Map(rooms.map((room) => [room.id, room]));
   }, [rooms]);
 
+  // Chỉ giữ Phòng 1 và Phòng 2, đồng thời loại trùng tên
+  const normalizedRooms = useMemo(() => {
+    const seen = new Set<string>();
+    const deduped = rooms.filter((room) => {
+      const name = (room.name || "").trim().toLowerCase();
+      if (!name) return false;
+      if (seen.has(name)) return false;
+      seen.add(name);
+      return true;
+    });
+
+    const preferred = deduped.filter((room) => {
+      const name = (room.name || "").trim().toLowerCase();
+      return (
+        name === "phòng 1" ||
+        name === "phong 1" ||
+        name === "room 1" ||
+        name === "phòng 2" ||
+        name === "phong 2" ||
+        name === "room 2"
+      );
+    });
+
+    return preferred.length > 0 ? preferred : deduped.slice(0, 2);
+  }, [rooms]);
+
   function formatDateTime(value?: string) {
     if (!value) return "N/A";
     const date = new Date(value);
@@ -121,12 +156,19 @@ export default function AdminShowtimesPage() {
     const start = new Date(showtime.start_time);
     const end = getEndTime(showtime);
 
-    if (Number.isNaN(start.getTime())) return "Không xác định";
-    if (!end) return "Sắp chiếu";
+    if (Number.isNaN(start.getTime())) {
+      return { label: "Không xác định", value: "unknown" as const };
+    }
 
-    if (now < start) return "Sắp chiếu";
-    if (now >= start && now <= end) return "Đang chiếu";
-    return "Đã kết thúc";
+    if (!end || now < start) {
+      return { label: "Sắp chiếu", value: "upcoming" as const };
+    }
+
+    if (now >= start && now <= end) {
+      return { label: "Đang chiếu", value: "showing" as const };
+    }
+
+    return { label: "Đã kết thúc", value: "ended" as const };
   }
 
   function handleInputChange<K extends keyof ShowtimeForm>(
@@ -139,19 +181,25 @@ export default function AdminShowtimesPage() {
   function closeModal() {
     setModalMode(null);
     setSelectedShowtime(null);
+    setSelectedMovieGroup(null);
     setForm(initialForm);
     setError("");
   }
 
-  function openCreateModal() {
-    setForm(initialForm);
+  function openCreateModal(movieId?: number) {
+    setForm({
+      ...initialForm,
+      movie_id: movieId ?? "",
+    });
     setSelectedShowtime(null);
+    setSelectedMovieGroup(null);
     setModalMode("create");
     setError("");
   }
 
-  function openViewModal(item: AdminShowtime) {
-    setSelectedShowtime(item);
+  function openViewModal(group: ShowtimeMovieGroup) {
+    setSelectedMovieGroup(group);
+    setSelectedShowtime(null);
     setModalMode("view");
     setError("");
   }
@@ -211,28 +259,78 @@ export default function AdminShowtimesPage() {
       await fetchData();
 
       if (selectedShowtime?.id === id) {
-        closeModal();
+        setSelectedShowtime(null);
+      }
+
+      if (selectedMovieGroup) {
+        const nextShowtimes = selectedMovieGroup.showtimes.filter(
+          (s) => s.id !== id,
+        );
+        if (nextShowtimes.length === 0) {
+          closeModal();
+        } else {
+          setSelectedMovieGroup({
+            ...selectedMovieGroup,
+            showtimes: nextShowtimes,
+          });
+        }
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Không thể xóa lịch chiếu");
     }
   }
 
+  function resetFilters() {
+    setSearchKeyword("");
+    setDateFilter("");
+    setStatusFilter("all");
+  }
+
   const filteredShowtimes = useMemo(() => {
     return showtimes.filter((item) => {
-      const movieMatch =
-        movieFilter === "all" || String(item.movie_id) === movieFilter;
+      const movieTitle =
+        item.movie_title || movieMap.get(item.movie_id)?.title || "";
 
-      const roomMatch =
-        roomFilter === "all" || String(item.room_id) === roomFilter;
+      const keywordMatch =
+        !searchKeyword.trim() ||
+        movieTitle.toLowerCase().includes(searchKeyword.trim().toLowerCase());
 
       const dateMatch =
         !dateFilter ||
         new Date(item.start_time).toISOString().slice(0, 10) === dateFilter;
 
-      return movieMatch && roomMatch && dateMatch;
+      const status = getShowtimeStatus(item);
+      const statusMatch =
+        statusFilter === "all" || status.value === statusFilter;
+
+      return keywordMatch && dateMatch && statusMatch;
     });
-  }, [showtimes, movieFilter, roomFilter, dateFilter]);
+  }, [showtimes, movieMap, searchKeyword, dateFilter, statusFilter]);
+
+  // Nhóm showtimes theo movie_id để ngoài bảng mỗi phim chỉ hiện 1 dòng
+  const groupedMovies = useMemo<ShowtimeMovieGroup[]>(() => {
+    const map = new Map<number, ShowtimeMovieGroup>();
+
+    filteredShowtimes.forEach((item) => {
+      const movieId = item.movie_id;
+      const movieTitle =
+        item.movie_title || movieMap.get(movieId)?.title || "N/A";
+
+      if (!map.has(movieId)) {
+        map.set(movieId, {
+          movie_id: movieId,
+          movie_title: movieTitle,
+          showtimes: [],
+        });
+      }
+
+      map.get(movieId)?.showtimes.push(item);
+    });
+
+    return Array.from(map.values()).sort((a, b) =>
+      a.movie_title.localeCompare(b.movie_title, "vi"),
+    );
+  }, [filteredShowtimes, movieMap]);
 
   return (
     <>
@@ -243,7 +341,7 @@ export default function AdminShowtimesPage() {
           <button
             type="button"
             className="btn btn-primary"
-            onClick={openCreateModal}
+            onClick={() => openCreateModal()}
           >
             + Thêm lịch chiếu
           </button>
@@ -252,39 +350,18 @@ export default function AdminShowtimesPage() {
         <div className="card border-0 shadow-sm mb-4">
           <div className="card-body">
             <div className="row g-3">
-              <div className="col-md-4">
-                <label className="form-label">Lọc theo phim</label>
-                <select
-                  className="form-select"
-                  value={movieFilter}
-                  onChange={(e) => setMovieFilter(e.target.value)}
-                >
-                  <option value="all">Tất cả phim</option>
-                  {movies.map((movie) => (
-                    <option key={movie.id} value={movie.id}>
-                      {movie.title}
-                    </option>
-                  ))}
-                </select>
+              <div className="col-md-5">
+                <label className="form-label">Tìm theo tên phim</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="Nhập tên phim..."
+                  value={searchKeyword}
+                  onChange={(e) => setSearchKeyword(e.target.value)}
+                />
               </div>
 
-              <div className="col-md-4">
-                <label className="form-label">Lọc theo phòng</label>
-                <select
-                  className="form-select"
-                  value={roomFilter}
-                  onChange={(e) => setRoomFilter(e.target.value)}
-                >
-                  <option value="all">Tất cả phòng</option>
-                  {rooms.map((room) => (
-                    <option key={room.id} value={room.id}>
-                      {room.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="col-md-4">
+              <div className="col-md-3">
                 <label className="form-label">Lọc theo ngày</label>
                 <input
                   type="date"
@@ -292,6 +369,32 @@ export default function AdminShowtimesPage() {
                   value={dateFilter}
                   onChange={(e) => setDateFilter(e.target.value)}
                 />
+              </div>
+
+              <div className="col-md-2">
+                <label className="form-label">Trạng thái</label>
+                <select
+                  className="form-select"
+                  value={statusFilter}
+                  onChange={(e) =>
+                    setStatusFilter(e.target.value as ShowtimeStatus)
+                  }
+                >
+                  <option value="all">Tất cả</option>
+                  <option value="upcoming">Sắp chiếu</option>
+                  <option value="showing">Đang chiếu</option>
+                  <option value="ended">Đã kết thúc</option>
+                </select>
+              </div>
+
+              <div className="col-md-2 d-flex align-items-end">
+                <button
+                  type="button"
+                  className="btn btn-outline-secondary w-100"
+                  onClick={resetFilters}
+                >
+                  Xóa lọc
+                </button>
               </div>
             </div>
           </div>
@@ -312,42 +415,32 @@ export default function AdminShowtimesPage() {
                   <thead className="table-light">
                     <tr>
                       <th>Tên phim</th>
+                      <th>Số suất chiếu</th>
                       <th className="text-center">Thao tác</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredShowtimes.length > 0 ? (
-                      filteredShowtimes.map((item) => (
-                        <tr key={item.id}>
-                          <td className="fw-semibold">
-                            {item.movie_title ||
-                              movieMap.get(item.movie_id)?.title ||
-                              "N/A"}
-                          </td>
+                    {groupedMovies.length > 0 ? (
+                      groupedMovies.map((group) => (
+                        <tr key={group.movie_id}>
+                          <td className="fw-semibold">{group.movie_title}</td>
+                          <td>{group.showtimes.length}</td>
                           <td className="text-center">
                             <div className="d-flex justify-content-center gap-2 flex-wrap">
                               <button
                                 type="button"
                                 className="btn btn-sm btn-outline-info"
-                                onClick={() => openViewModal(item)}
+                                onClick={() => openViewModal(group)}
                               >
-                                Xem
+                                Xem lịch chiếu
                               </button>
 
                               <button
                                 type="button"
                                 className="btn btn-sm btn-outline-primary"
-                                onClick={() => openEditModal(item)}
+                                onClick={() => openCreateModal(group.movie_id)}
                               >
-                                Sửa
-                              </button>
-
-                              <button
-                                type="button"
-                                className="btn btn-sm btn-outline-danger"
-                                onClick={() => handleDelete(item.id)}
-                              >
-                                Xóa
+                                Thêm suất
                               </button>
                             </div>
                           </td>
@@ -355,7 +448,7 @@ export default function AdminShowtimesPage() {
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={2} className="text-center text-muted py-4">
+                        <td colSpan={3} className="text-center text-muted py-4">
                           Chưa có lịch chiếu nào
                         </td>
                       </tr>
@@ -383,7 +476,7 @@ export default function AdminShowtimesPage() {
 
           <div
             className="position-fixed top-50 start-50 translate-middle w-100 px-3"
-            style={{ maxWidth: 760, zIndex: 1050 }}
+            style={{ maxWidth: 820, zIndex: 1050 }}
           >
             <div
               className="card border-0 shadow-lg"
@@ -394,8 +487,8 @@ export default function AdminShowtimesPage() {
                 <div className="d-flex justify-content-between align-items-center mb-3">
                   <h4 className="mb-0">
                     {modalMode === "create" && "Thêm lịch chiếu"}
-                    {modalMode === "edit" && "Cập nhật lịch chiếu"}
-                    {modalMode === "view" && "Chi tiết lịch chiếu"}
+                    {modalMode === "edit" && "Cập nhật suất chiếu"}
+                    {modalMode === "view" && "Lịch chiếu của phim"}
                   </h4>
 
                   <button
@@ -411,97 +504,97 @@ export default function AdminShowtimesPage() {
                   <div className="alert alert-danger py-2">{error}</div>
                 )}
 
-                {modalMode === "view" && selectedShowtime && (
-                  <div className="row g-3">
-                    <div className="col-md-6">
+                {modalMode === "view" && selectedMovieGroup && (
+                  <div>
+                    <div className="mb-3">
                       <label className="form-label">Tên phim</label>
                       <input
                         className="form-control"
-                        value={
-                          selectedShowtime.movie_title ||
-                          movieMap.get(selectedShowtime.movie_id)?.title ||
-                          "N/A"
-                        }
+                        value={selectedMovieGroup.movie_title}
                         disabled
                         readOnly
                       />
                     </div>
 
-                    <div className="col-md-6">
-                      <label className="form-label">Phòng</label>
-                      <input
-                        className="form-control"
-                        value={
-                          selectedShowtime.room_name ||
-                          roomMap.get(selectedShowtime.room_id)?.name ||
-                          "N/A"
-                        }
-                        disabled
-                        readOnly
-                      />
-                    </div>
+                    <div className="d-flex justify-content-between align-items-center mb-3">
+                      <h6 className="mb-0">Danh sách suất chiếu</h6>
 
-                    <div className="col-md-6">
-                      <label className="form-label">Thời gian bắt đầu</label>
-                      <input
-                        className="form-control"
-                        value={formatDateTime(selectedShowtime.start_time)}
-                        disabled
-                        readOnly
-                      />
-                    </div>
-
-                    <div className="col-md-6">
-                      <label className="form-label">Thời gian kết thúc</label>
-                      <input
-                        className="form-control"
-                        value={
-                          getEndTime(selectedShowtime)
-                            ? formatDateTime(
-                                getEndTime(selectedShowtime)?.toISOString(),
-                              )
-                            : "N/A"
-                        }
-                        disabled
-                        readOnly
-                      />
-                    </div>
-
-                    <div className="col-md-6">
-                      <label className="form-label">Số ghế đã đặt</label>
-                      <input
-                        className="form-control"
-                        value={
-                          typeof selectedShowtime.booked_seats_count ===
-                          "number"
-                            ? String(selectedShowtime.booked_seats_count)
-                            : "Chưa có dữ liệu"
-                        }
-                        disabled
-                        readOnly
-                      />
-                    </div>
-
-                    <div className="col-md-6">
-                      <label className="form-label">
-                        Trạng thái suất chiếu
-                      </label>
-                      <input
-                        className="form-control"
-                        value={getShowtimeStatus(selectedShowtime)}
-                        disabled
-                        readOnly
-                      />
-                    </div>
-
-                    <div className="d-flex gap-2 mt-3">
                       <button
                         type="button"
-                        className="btn btn-outline-primary"
-                        onClick={() => openEditModal(selectedShowtime)}
+                        className="btn btn-sm btn-primary"
+                        onClick={() =>
+                          openCreateModal(selectedMovieGroup.movie_id)
+                        }
                       >
-                        Chuyển sang sửa
+                        + Thêm suất chiếu
                       </button>
+                    </div>
+
+                    <div className="table-responsive">
+                      <table className="table table-bordered align-middle">
+                        <thead className="table-light">
+                          <tr>
+                            <th>Phòng</th>
+                            <th>Bắt đầu</th>
+                            <th>Kết thúc</th>
+                            <th>Ghế đã đặt</th>
+                            <th>Trạng thái</th>
+                            <th>Thao tác</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {selectedMovieGroup.showtimes
+                            .slice()
+                            .sort(
+                              (a, b) =>
+                                new Date(a.start_time).getTime() -
+                                new Date(b.start_time).getTime(),
+                            )
+                            .map((showtime) => (
+                              <tr key={showtime.id}>
+                                <td>
+                                  {showtime.room_name ||
+                                    roomMap.get(showtime.room_id)?.name ||
+                                    "N/A"}
+                                </td>
+                                <td>{formatDateTime(showtime.start_time)}</td>
+                                <td>
+                                  {getEndTime(showtime)
+                                    ? formatDateTime(
+                                        getEndTime(showtime)?.toISOString(),
+                                      )
+                                    : "N/A"}
+                                </td>
+                                <td>
+                                  {typeof showtime.booked_seats_count ===
+                                  "number"
+                                    ? showtime.booked_seats_count
+                                    : "Chưa có dữ liệu"}
+                                </td>
+                                <td>{getShowtimeStatus(showtime).label}</td>
+                                <td>
+                                  <div className="d-flex gap-2 flex-wrap">
+                                    <button
+                                      type="button"
+                                      className="btn btn-sm btn-outline-primary"
+                                      onClick={() => openEditModal(showtime)}
+                                    >
+                                      Sửa
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      className="btn btn-sm btn-outline-danger"
+                                      onClick={() => handleDelete(showtime.id)}
+                                    >
+                                      Xóa
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                        </tbody>
+                      </table>
                     </div>
                   </div>
                 )}
@@ -543,7 +636,7 @@ export default function AdminShowtimesPage() {
                           }
                         >
                           <option value="">-- Chọn phòng --</option>
-                          {rooms.map((room) => (
+                          {normalizedRooms.map((room) => (
                             <option key={room.id} value={room.id}>
                               {room.name}
                             </option>
@@ -573,13 +666,13 @@ export default function AdminShowtimesPage() {
                         {saving
                           ? "Đang lưu..."
                           : modalMode === "edit"
-                            ? "Cập nhật lịch chiếu"
+                            ? "Cập nhật suất chiếu"
                             : "Thêm lịch chiếu"}
                       </button>
 
                       <button
                         type="button"
-                        className="btn btn-secondary"
+                        className="btn btn-outline-secondary"
                         onClick={closeModal}
                       >
                         Hủy
