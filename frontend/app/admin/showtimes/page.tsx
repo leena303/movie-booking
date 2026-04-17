@@ -383,7 +383,7 @@ function AdminShowtimesContent() {
               </div>
 
               <div className="col-md-2">
-                <label className="form-label">Trạng thái suất chiếu</label>
+                <label className="form-label">Trạng thái</label>
                 <select
                   className="form-select"
                   value={statusFilter}
