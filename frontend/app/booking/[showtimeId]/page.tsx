@@ -7,6 +7,12 @@ import { Seat } from "@/types/movie";
 import { useAuth } from "@/hooks/useAuth";
 import { useParams, useRouter } from "next/navigation";
 
+function sortSeatsByRowAndCol(a: Seat, b: Seat) {
+  const rowCompare = a.row_label.localeCompare(b.row_label, "en");
+  if (rowCompare !== 0) return rowCompare;
+  return a.col_number - b.col_number;
+}
+
 export default function BookingPage() {
   const router = useRouter();
   const { token } = useAuth();
@@ -40,7 +46,10 @@ export default function BookingPage() {
         const data = await moviesService.getSeatsByShowtimeId(showtimeId);
         if (!isMounted) return;
 
-        setSeats(Array.isArray(data) ? data : []);
+        const normalizedSeats = Array.isArray(data) ? data : [];
+        normalizedSeats.sort(sortSeatsByRowAndCol);
+
+        setSeats(normalizedSeats);
       } catch (err) {
         console.error("API ERROR:", err);
         if (!isMounted) return;
@@ -72,12 +81,10 @@ export default function BookingPage() {
   );
 
   const chairString = useMemo(() => {
-    return selectedSeats
-      .map((seatId) => {
-        const seat = seats.find((item) => item.id === seatId);
-        return seat ? `${seat.row_label}${seat.col_number}` : "";
-      })
-      .filter(Boolean)
+    return seats
+      .filter((seat) => selectedSeats.includes(seat.id))
+      .sort(sortSeatsByRowAndCol)
+      .map((seat) => `${seat.row_label}${seat.col_number}`)
       .join(", ");
   }, [seats, selectedSeats]);
 
@@ -168,6 +175,7 @@ export default function BookingPage() {
               </div>
 
               <button
+                type="button"
                 onClick={handleBooking}
                 className="btn btn-danger w-100"
                 disabled={selectedSeats.length === 0}
