@@ -116,6 +116,36 @@ export default function AdminBookingsPage() {
     }
   }
 
+  function paymentMethodText(method?: string) {
+    switch ((method || "").toLowerCase()) {
+      case "cod":
+        return "Thanh toán tại rạp";
+      case "momo":
+        return "Momo";
+      case "vnpay":
+        return "VNPay";
+      default:
+        return "Chưa có dữ liệu";
+    }
+  }
+
+  function paymentStatusText(status?: string) {
+    switch ((status || "").toLowerCase()) {
+      case "paid":
+        return "Đã thanh toán";
+      case "unpaid":
+        return "Chưa thanh toán";
+      case "pending":
+        return "Đang chờ thanh toán";
+      default:
+        return "Chưa có dữ liệu";
+    }
+  }
+
+  function seatText(seats?: string) {
+    return seats && seats.trim() ? seats : "Chưa có dữ liệu";
+  }
+
   function formatDateTime(value?: string) {
     if (!value) return "N/A";
 
@@ -188,6 +218,8 @@ export default function AdminBookingsPage() {
                       <th>Phim</th>
                       <th>Người dùng</th>
                       <th>Ngày đặt</th>
+                      <th>Ghế</th>
+                      <th>Thanh toán</th>
                       <th>Giá</th>
                       <th>Trạng thái</th>
                       <th style={{ minWidth: 220 }}>Thao tác nhanh</th>
@@ -203,20 +235,17 @@ export default function AdminBookingsPage() {
                           onClick={() => setSelectedBooking(b)}
                         >
                           <td>{index + 1}</td>
-
                           <td className="fw-semibold">
                             {b.movie_title || "N/A"}
                           </td>
-
                           <td>{b.user_name || b.email || "N/A"}</td>
-
                           <td>{formatDateTime(b.created_at)}</td>
-
+                          <td>{seatText(b.seat_names)}</td>
+                          <td>{paymentMethodText(b.payment_method)}</td>
                           <td>
                             {Number(b.total_price || 0).toLocaleString("vi-VN")}
                             đ
                           </td>
-
                           <td>
                             <span className={`badge ${statusClass(b.status)}`}>
                               {statusText(b.status)}
@@ -264,7 +293,7 @@ export default function AdminBookingsPage() {
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={7} className="text-center text-muted py-4">
+                        <td colSpan={9} className="text-center text-muted py-4">
                           Chưa có vé nào
                         </td>
                       </tr>
@@ -283,8 +312,8 @@ export default function AdminBookingsPage() {
             className="position-fixed top-0 start-0 w-100 h-100"
             style={{
               backgroundColor: "rgba(0, 0, 0, 0.45)",
-              backdropFilter: "blur(3px)",
-              WebkitBackdropFilter: "blur(3px)",
+              backdropFilter: "blur(2px)",
+              WebkitBackdropFilter: "blur(2px)",
               zIndex: 1040,
             }}
             onClick={() => setSelectedBooking(null)}
@@ -292,16 +321,20 @@ export default function AdminBookingsPage() {
 
           <div
             className="position-fixed top-50 start-50 translate-middle w-100 px-3"
-            style={{ maxWidth: 760, zIndex: 1050 }}
+            style={{ maxWidth: 620, zIndex: 1050 }}
           >
             <div
               className="card border-0 shadow-lg"
-              style={{ borderRadius: 16 }}
+              style={{
+                borderRadius: 14,
+                maxHeight: "85vh",
+                overflowY: "auto",
+              }}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="card-body p-4">
+              <div className="card-body p-3 p-md-4">
                 <div className="d-flex justify-content-between align-items-center mb-3">
-                  <h4 className="mb-0">Chi tiết booking</h4>
+                  <h5 className="mb-0 fw-bold">Chi tiết booking</h5>
 
                   <button
                     type="button"
@@ -312,11 +345,11 @@ export default function AdminBookingsPage() {
                   </button>
                 </div>
 
-                <div className="row g-3">
+                <div className="row g-2">
                   <div className="col-md-6">
-                    <label className="form-label">Phim</label>
+                    <label className="form-label small mb-1">Phim</label>
                     <input
-                      className="form-control"
+                      className="form-control form-control-sm"
                       value={selectedBooking.movie_title || "N/A"}
                       readOnly
                       disabled
@@ -324,9 +357,9 @@ export default function AdminBookingsPage() {
                   </div>
 
                   <div className="col-md-6">
-                    <label className="form-label">Người dùng</label>
+                    <label className="form-label small mb-1">Người dùng</label>
                     <input
-                      className="form-control"
+                      className="form-control form-control-sm"
                       value={
                         selectedBooking.user_name ||
                         selectedBooking.email ||
@@ -338,9 +371,9 @@ export default function AdminBookingsPage() {
                   </div>
 
                   <div className="col-md-6">
-                    <label className="form-label">Email</label>
+                    <label className="form-label small mb-1">Email</label>
                     <input
-                      className="form-control"
+                      className="form-control form-control-sm"
                       value={selectedBooking.email || "N/A"}
                       readOnly
                       disabled
@@ -348,9 +381,21 @@ export default function AdminBookingsPage() {
                   </div>
 
                   <div className="col-md-6">
-                    <label className="form-label">Ngày đặt vé</label>
+                    <label className="form-label small mb-1">
+                      Số điện thoại
+                    </label>
                     <input
-                      className="form-control"
+                      className="form-control form-control-sm"
+                      value={selectedBooking.phone || "N/A"}
+                      readOnly
+                      disabled
+                    />
+                  </div>
+
+                  <div className="col-md-6">
+                    <label className="form-label small mb-1">Ngày đặt vé</label>
+                    <input
+                      className="form-control form-control-sm"
                       value={formatDateTime(selectedBooking.created_at)}
                       readOnly
                       disabled
@@ -358,9 +403,9 @@ export default function AdminBookingsPage() {
                   </div>
 
                   <div className="col-md-6">
-                    <label className="form-label">Suất chiếu</label>
+                    <label className="form-label small mb-1">Suất chiếu</label>
                     <input
-                      className="form-control"
+                      className="form-control form-control-sm"
                       value={formatDateTime(selectedBooking.start_time)}
                       readOnly
                       disabled
@@ -368,9 +413,9 @@ export default function AdminBookingsPage() {
                   </div>
 
                   <div className="col-md-6">
-                    <label className="form-label">Phòng</label>
+                    <label className="form-label small mb-1">Phòng</label>
                     <input
-                      className="form-control"
+                      className="form-control form-control-sm"
                       value={selectedBooking.room_name || "N/A"}
                       readOnly
                       disabled
@@ -378,31 +423,43 @@ export default function AdminBookingsPage() {
                   </div>
 
                   <div className="col-md-6">
-                    <label className="form-label">Ghế</label>
+                    <label className="form-label small mb-1">Ghế đã đặt</label>
                     <input
-                      className="form-control"
-                      value={selectedBooking.seat_names || "Chưa có dữ liệu"}
+                      className="form-control form-control-sm"
+                      value={seatText(selectedBooking.seat_names)}
                       readOnly
                       disabled
                     />
                   </div>
 
                   <div className="col-md-6">
-                    <label className="form-label">Thanh toán</label>
+                    <label className="form-label small mb-1">
+                      Phương thức thanh toán
+                    </label>
                     <input
-                      className="form-control"
-                      value={
-                        selectedBooking.payment_method || "Chưa có dữ liệu"
-                      }
+                      className="form-control form-control-sm"
+                      value={paymentMethodText(selectedBooking.payment_method)}
                       readOnly
                       disabled
                     />
                   </div>
 
                   <div className="col-md-6">
-                    <label className="form-label">Tổng tiền</label>
+                    <label className="form-label small mb-1">
+                      Trạng thái thanh toán
+                    </label>
                     <input
-                      className="form-control"
+                      className="form-control form-control-sm"
+                      value={paymentStatusText(selectedBooking.payment_status)}
+                      readOnly
+                      disabled
+                    />
+                  </div>
+
+                  <div className="col-md-6">
+                    <label className="form-label small mb-1">Tổng tiền</label>
+                    <input
+                      className="form-control form-control-sm"
                       value={`${Number(selectedBooking.total_price || 0).toLocaleString("vi-VN")}đ`}
                       readOnly
                       disabled
@@ -410,9 +467,11 @@ export default function AdminBookingsPage() {
                   </div>
 
                   <div className="col-md-6">
-                    <label className="form-label">Trạng thái</label>
+                    <label className="form-label small mb-1">
+                      Trạng thái booking
+                    </label>
                     <input
-                      className="form-control"
+                      className="form-control form-control-sm"
                       value={statusText(selectedBooking.status)}
                       readOnly
                       disabled
@@ -420,10 +479,10 @@ export default function AdminBookingsPage() {
                   </div>
                 </div>
 
-                <div className="d-flex gap-2 mt-4">
+                <div className="d-flex flex-wrap gap-2 mt-4">
                   <button
                     type="button"
-                    className="btn btn-success"
+                    className="btn btn-sm btn-success"
                     disabled={
                       updatingId === selectedBooking.booking_id ||
                       selectedBooking.status === "confirmed"
@@ -440,7 +499,7 @@ export default function AdminBookingsPage() {
 
                   <button
                     type="button"
-                    className="btn btn-danger"
+                    className="btn btn-sm btn-danger"
                     disabled={
                       updatingId === selectedBooking.booking_id ||
                       selectedBooking.status === "cancelled"
@@ -453,14 +512,6 @@ export default function AdminBookingsPage() {
                     }
                   >
                     ❌ Hủy
-                  </button>
-
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={() => setSelectedBooking(null)}
-                  >
-                    Đóng
                   </button>
                 </div>
               </div>

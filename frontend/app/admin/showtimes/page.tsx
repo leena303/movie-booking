@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { AdminMovie, AdminRoom, AdminShowtime } from "@/types/admin";
 import { adminService } from "@/services/admin";
 
@@ -13,9 +14,8 @@ type ShowtimeForm = {
   start_time: string;
 };
 
-type ShowtimeMovieGroup = {
-  movie_id: number;
-  movie_title: string;
+type MovieWithShowtimes = {
+  movie: AdminMovie;
   showtimes: AdminShowtime[];
 };
 
@@ -26,6 +26,8 @@ const initialForm: ShowtimeForm = {
 };
 
 export default function AdminShowtimesPage() {
+  const searchParams = useSearchParams();
+
   const [showtimes, setShowtimes] = useState<AdminShowtime[]>([]);
   const [movies, setMovies] = useState<AdminMovie[]>([]);
   const [rooms, setRooms] = useState<AdminRoom[]>([]);
@@ -37,8 +39,7 @@ export default function AdminShowtimesPage() {
   const [modalMode, setModalMode] = useState<ModalMode>(null);
   const [selectedShowtime, setSelectedShowtime] =
     useState<AdminShowtime | null>(null);
-  const [selectedMovieGroup, setSelectedMovieGroup] =
-    useState<ShowtimeMovieGroup | null>(null);
+  const [selectedMovie, setSelectedMovie] = useState<AdminMovie | null>(null);
   const [form, setForm] = useState<ShowtimeForm>(initialForm);
 
   const [searchKeyword, setSearchKeyword] = useState("");
@@ -88,15 +89,26 @@ export default function AdminShowtimesPage() {
     };
   }, [modalMode]);
 
-  const movieMap = useMemo(() => {
-    return new Map(movies.map((movie) => [movie.id, movie]));
-  }, [movies]);
+  useEffect(() => {
+    const movieId = Number(searchParams.get("movieId"));
+    if (!movieId || movies.length === 0) return;
+
+    const movie = movies.find((m) => m.id === movieId);
+    if (!movie) return;
+
+    setSelectedMovie(movie);
+    setForm({
+      movie_id: movie.id,
+      room_id: "",
+      start_time: "",
+    });
+    setModalMode("create");
+  }, [searchParams, movies]);
 
   const roomMap = useMemo(() => {
     return new Map(rooms.map((room) => [room.id, room]));
   }, [rooms]);
 
-  // Chỉ giữ Phòng 1 và Phòng 2, đồng thời loại trùng tên
   const normalizedRooms = useMemo(() => {
     const seen = new Set<string>();
     const deduped = rooms.filter((room) => {
@@ -112,10 +124,8 @@ export default function AdminShowtimesPage() {
       return (
         name === "phòng 1" ||
         name === "phong 1" ||
-        name === "room 1" ||
         name === "phòng 2" ||
-        name === "phong 2" ||
-        name === "room 2"
+        name === "phong 2"
       );
     });
 
@@ -138,36 +148,26 @@ export default function AdminShowtimesPage() {
     return local.toISOString().slice(0, 16);
   }
 
-  function getMovieDurationMinutes(showtime: AdminShowtime) {
-    return movieMap.get(showtime.movie_id)?.duration_min ?? 0;
-  }
-
-  function getEndTime(showtime: AdminShowtime) {
+  function getEndTime(showtime: AdminShowtime, durationMin?: number) {
     const start = new Date(showtime.start_time);
-    const durationMin = getMovieDurationMinutes(showtime);
-
     if (Number.isNaN(start.getTime()) || !durationMin) return null;
-
     return new Date(start.getTime() + durationMin * 60 * 1000);
   }
 
-  function getShowtimeStatus(showtime: AdminShowtime) {
+  function getShowtimeStatus(showtime: AdminShowtime, durationMin?: number) {
     const now = new Date();
     const start = new Date(showtime.start_time);
-    const end = getEndTime(showtime);
+    const end = getEndTime(showtime, durationMin);
 
     if (Number.isNaN(start.getTime())) {
       return { label: "Không xác định", value: "unknown" as const };
     }
-
     if (!end || now < start) {
       return { label: "Sắp chiếu", value: "upcoming" as const };
     }
-
     if (now >= start && now <= end) {
       return { label: "Đang chiếu", value: "showing" as const };
     }
-
     return { label: "Đã kết thúc", value: "ended" as const };
   }
 
@@ -181,35 +181,37 @@ export default function AdminShowtimesPage() {
   function closeModal() {
     setModalMode(null);
     setSelectedShowtime(null);
-    setSelectedMovieGroup(null);
+    setSelectedMovie(null);
     setForm(initialForm);
     setError("");
   }
 
-  function openCreateModal(movieId?: number) {
-    setForm({
-      ...initialForm,
-      movie_id: movieId ?? "",
-    });
+  function openCreateModal(movie?: AdminMovie) {
+    setSelectedMovie(movie || null);
     setSelectedShowtime(null);
-    setSelectedMovieGroup(null);
+    setForm({
+      movie_id: movie?.id ?? "",
+      room_id: "",
+      start_time: "",
+    });
     setModalMode("create");
     setError("");
   }
 
-  function openViewModal(group: ShowtimeMovieGroup) {
-    setSelectedMovieGroup(group);
+  function openViewModal(movie: AdminMovie) {
+    setSelectedMovie(movie);
     setSelectedShowtime(null);
     setModalMode("view");
     setError("");
   }
 
-  function openEditModal(item: AdminShowtime) {
-    setSelectedShowtime(item);
+  function openEditModal(showtime: AdminShowtime, movie: AdminMovie) {
+    setSelectedMovie(movie);
+    setSelectedShowtime(showtime);
     setForm({
-      movie_id: item.movie_id,
-      room_id: item.room_id,
-      start_time: toDatetimeLocal(item.start_time),
+      movie_id: showtime.movie_id,
+      room_id: showtime.room_id,
+      start_time: toDatetimeLocal(showtime.start_time),
     });
     setModalMode("edit");
     setError("");
@@ -261,20 +263,6 @@ export default function AdminShowtimesPage() {
       if (selectedShowtime?.id === id) {
         setSelectedShowtime(null);
       }
-
-      if (selectedMovieGroup) {
-        const nextShowtimes = selectedMovieGroup.showtimes.filter(
-          (s) => s.id !== id,
-        );
-        if (nextShowtimes.length === 0) {
-          closeModal();
-        } else {
-          setSelectedMovieGroup({
-            ...selectedMovieGroup,
-            showtimes: nextShowtimes,
-          });
-        }
-      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Không thể xóa lịch chiếu");
     }
@@ -286,51 +274,74 @@ export default function AdminShowtimesPage() {
     setStatusFilter("all");
   }
 
-  const filteredShowtimes = useMemo(() => {
-    return showtimes.filter((item) => {
-      const movieTitle =
-        item.movie_title || movieMap.get(item.movie_id)?.title || "";
-
-      const keywordMatch =
-        !searchKeyword.trim() ||
-        movieTitle.toLowerCase().includes(searchKeyword.trim().toLowerCase());
-
-      const dateMatch =
-        !dateFilter ||
-        new Date(item.start_time).toISOString().slice(0, 10) === dateFilter;
-
-      const status = getShowtimeStatus(item);
-      const statusMatch =
-        statusFilter === "all" || status.value === statusFilter;
-
-      return keywordMatch && dateMatch && statusMatch;
-    });
-  }, [showtimes, movieMap, searchKeyword, dateFilter, statusFilter]);
-
-  // Nhóm showtimes theo movie_id để ngoài bảng mỗi phim chỉ hiện 1 dòng
-  const groupedMovies = useMemo<ShowtimeMovieGroup[]>(() => {
-    const map = new Map<number, ShowtimeMovieGroup>();
-
-    filteredShowtimes.forEach((item) => {
-      const movieId = item.movie_id;
-      const movieTitle =
-        item.movie_title || movieMap.get(movieId)?.title || "N/A";
-
-      if (!map.has(movieId)) {
-        map.set(movieId, {
-          movie_id: movieId,
-          movie_title: movieTitle,
-          showtimes: [],
-        });
+  const movieShowtimeMap = useMemo(() => {
+    const map = new Map<number, AdminShowtime[]>();
+    showtimes.forEach((showtime) => {
+      if (!map.has(showtime.movie_id)) {
+        map.set(showtime.movie_id, []);
       }
-
-      map.get(movieId)?.showtimes.push(item);
+      map.get(showtime.movie_id)?.push(showtime);
     });
+    return map;
+  }, [showtimes]);
 
-    return Array.from(map.values()).sort((a, b) =>
-      a.movie_title.localeCompare(b.movie_title, "vi"),
-    );
-  }, [filteredShowtimes, movieMap]);
+  const filteredMovies = useMemo<MovieWithShowtimes[]>(() => {
+    return movies
+      .filter((movie) => {
+        const keywordMatch =
+          !searchKeyword.trim() ||
+          movie.title
+            .toLowerCase()
+            .includes(searchKeyword.trim().toLowerCase());
+
+        const movieShowtimes = movieShowtimeMap.get(movie.id) || [];
+
+        const matchedShowtimes = movieShowtimes.filter((showtime) => {
+          const dateMatch =
+            !dateFilter ||
+            new Date(showtime.start_time).toISOString().slice(0, 10) ===
+              dateFilter;
+
+          const status = getShowtimeStatus(showtime, movie.duration_min);
+          const statusMatch =
+            statusFilter === "all" || status.value === statusFilter;
+
+          return dateMatch && statusMatch;
+        });
+
+        if (statusFilter === "all" && !dateFilter) {
+          return keywordMatch;
+        }
+
+        return keywordMatch && matchedShowtimes.length > 0;
+      })
+      .map((movie) => ({
+        movie,
+        showtimes: movieShowtimeMap.get(movie.id) || [],
+      }))
+      .sort((a, b) => a.movie.title.localeCompare(b.movie.title, "vi"));
+  }, [movies, movieShowtimeMap, searchKeyword, dateFilter, statusFilter]);
+
+  const selectedMovieShowtimes = useMemo(() => {
+    if (!selectedMovie) return [];
+    return (movieShowtimeMap.get(selectedMovie.id) || [])
+      .filter((showtime) => {
+        const dateMatch =
+          !dateFilter ||
+          new Date(showtime.start_time).toISOString().slice(0, 10) ===
+            dateFilter;
+
+        const status = getShowtimeStatus(showtime, selectedMovie.duration_min);
+        const statusMatch =
+          statusFilter === "all" || status.value === statusFilter;
+
+        return dateMatch && statusMatch;
+      })
+      .sort(
+        (a, b) =>
+          new Date(a.start_time).getTime() - new Date(b.start_time).getTime(),
+      );
+  }, [selectedMovie, movieShowtimeMap, dateFilter, statusFilter]);
 
   return (
     <>
@@ -415,22 +426,36 @@ export default function AdminShowtimesPage() {
                   <thead className="table-light">
                     <tr>
                       <th>Tên phim</th>
+                      <th>Trạng thái phim</th>
                       <th>Số suất chiếu</th>
                       <th className="text-center">Thao tác</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {groupedMovies.length > 0 ? (
-                      groupedMovies.map((group) => (
-                        <tr key={group.movie_id}>
-                          <td className="fw-semibold">{group.movie_title}</td>
-                          <td>{group.showtimes.length}</td>
+                    {filteredMovies.length > 0 ? (
+                      filteredMovies.map(({ movie, showtimes }) => (
+                        <tr key={movie.id}>
+                          <td className="fw-semibold">{movie.title}</td>
+                          <td>
+                            <span
+                              className={`badge ${
+                                movie.status === "now_showing"
+                                  ? "bg-success"
+                                  : "bg-warning text-dark"
+                              }`}
+                            >
+                              {movie.status === "now_showing"
+                                ? "Đang chiếu"
+                                : "Sắp chiếu"}
+                            </span>
+                          </td>
+                          <td>{showtimes.length}</td>
                           <td className="text-center">
                             <div className="d-flex justify-content-center gap-2 flex-wrap">
                               <button
                                 type="button"
                                 className="btn btn-sm btn-outline-info"
-                                onClick={() => openViewModal(group)}
+                                onClick={() => openViewModal(movie)}
                               >
                                 Xem lịch chiếu
                               </button>
@@ -438,7 +463,7 @@ export default function AdminShowtimesPage() {
                               <button
                                 type="button"
                                 className="btn btn-sm btn-outline-primary"
-                                onClick={() => openCreateModal(group.movie_id)}
+                                onClick={() => openCreateModal(movie)}
                               >
                                 Thêm suất
                               </button>
@@ -448,8 +473,8 @@ export default function AdminShowtimesPage() {
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={3} className="text-center text-muted py-4">
-                          Chưa có lịch chiếu nào
+                        <td colSpan={4} className="text-center text-muted py-4">
+                          Chưa có phim nào
                         </td>
                       </tr>
                     )}
@@ -476,7 +501,7 @@ export default function AdminShowtimesPage() {
 
           <div
             className="position-fixed top-50 start-50 translate-middle w-100 px-3"
-            style={{ maxWidth: 820, zIndex: 1050 }}
+            style={{ maxWidth: 860, zIndex: 1050 }}
           >
             <div
               className="card border-0 shadow-lg"
@@ -504,16 +529,32 @@ export default function AdminShowtimesPage() {
                   <div className="alert alert-danger py-2">{error}</div>
                 )}
 
-                {modalMode === "view" && selectedMovieGroup && (
+                {modalMode === "view" && selectedMovie && (
                   <div>
-                    <div className="mb-3">
-                      <label className="form-label">Tên phim</label>
-                      <input
-                        className="form-control"
-                        value={selectedMovieGroup.movie_title}
-                        disabled
-                        readOnly
-                      />
+                    <div className="row g-3 mb-3">
+                      <div className="col-md-6">
+                        <label className="form-label">Tên phim</label>
+                        <input
+                          className="form-control"
+                          value={selectedMovie.title}
+                          disabled
+                          readOnly
+                        />
+                      </div>
+
+                      <div className="col-md-6">
+                        <label className="form-label">Trạng thái phim</label>
+                        <input
+                          className="form-control"
+                          value={
+                            selectedMovie.status === "now_showing"
+                              ? "Đang chiếu"
+                              : "Sắp chiếu"
+                          }
+                          disabled
+                          readOnly
+                        />
+                      </div>
                     </div>
 
                     <div className="d-flex justify-content-between align-items-center mb-3">
@@ -522,9 +563,7 @@ export default function AdminShowtimesPage() {
                       <button
                         type="button"
                         className="btn btn-sm btn-primary"
-                        onClick={() =>
-                          openCreateModal(selectedMovieGroup.movie_id)
-                        }
+                        onClick={() => openCreateModal(selectedMovie)}
                       >
                         + Thêm suất chiếu
                       </button>
@@ -537,20 +576,14 @@ export default function AdminShowtimesPage() {
                             <th>Phòng</th>
                             <th>Bắt đầu</th>
                             <th>Kết thúc</th>
-                            <th>Ghế đã đặt</th>
-                            <th>Trạng thái</th>
+                            {/* <th>Ghế đã đặt</th> */}
+                            <th>Trạng thái suất</th>
                             <th>Thao tác</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {selectedMovieGroup.showtimes
-                            .slice()
-                            .sort(
-                              (a, b) =>
-                                new Date(a.start_time).getTime() -
-                                new Date(b.start_time).getTime(),
-                            )
-                            .map((showtime) => (
+                          {selectedMovieShowtimes.length > 0 ? (
+                            selectedMovieShowtimes.map((showtime) => (
                               <tr key={showtime.id}>
                                 <td>
                                   {showtime.room_name ||
@@ -559,25 +592,40 @@ export default function AdminShowtimesPage() {
                                 </td>
                                 <td>{formatDateTime(showtime.start_time)}</td>
                                 <td>
-                                  {getEndTime(showtime)
+                                  {getEndTime(
+                                    showtime,
+                                    selectedMovie.duration_min,
+                                  )
                                     ? formatDateTime(
-                                        getEndTime(showtime)?.toISOString(),
+                                        getEndTime(
+                                          showtime,
+                                          selectedMovie.duration_min,
+                                        )?.toISOString(),
                                       )
                                     : "N/A"}
                                 </td>
-                                <td>
+                                {/* <td>
                                   {typeof showtime.booked_seats_count ===
                                   "number"
                                     ? showtime.booked_seats_count
                                     : "Chưa có dữ liệu"}
+                                </td> */}
+                                <td>
+                                  {
+                                    getShowtimeStatus(
+                                      showtime,
+                                      selectedMovie.duration_min,
+                                    ).label
+                                  }
                                 </td>
-                                <td>{getShowtimeStatus(showtime).label}</td>
                                 <td>
                                   <div className="d-flex gap-2 flex-wrap">
                                     <button
                                       type="button"
                                       className="btn btn-sm btn-outline-primary"
-                                      onClick={() => openEditModal(showtime)}
+                                      onClick={() =>
+                                        openEditModal(showtime, selectedMovie)
+                                      }
                                     >
                                       Sửa
                                     </button>
@@ -592,7 +640,17 @@ export default function AdminShowtimesPage() {
                                   </div>
                                 </td>
                               </tr>
-                            ))}
+                            ))
+                          ) : (
+                            <tr>
+                              <td
+                                colSpan={6}
+                                className="text-center text-muted py-4"
+                              >
+                                Phim này chưa có suất chiếu nào
+                              </td>
+                            </tr>
+                          )}
                         </tbody>
                       </table>
                     </div>

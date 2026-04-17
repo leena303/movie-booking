@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { AdminMovie, CreateMoviePayload } from "@/types/admin";
 import { adminService } from "@/services/admin";
 
@@ -15,9 +16,12 @@ const initialForm: CreateMoviePayload = {
   poster_url: "",
   status: "coming_soon",
   release_date: "",
+  director: "",
 };
 
 export default function AdminMoviesPage() {
+  const router = useRouter();
+
   const [movies, setMovies] = useState<AdminMovie[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -74,6 +78,7 @@ export default function AdminMoviesPage() {
       release_date: movie.release_date
         ? new Date(movie.release_date).toISOString().split("T")[0]
         : "",
+      director: movie.director || "",
     });
   }
 
@@ -115,6 +120,10 @@ export default function AdminMoviesPage() {
     setEditingId(movie.id);
     setModalMode("edit");
     setError("");
+  }
+
+  function handleAddShowtime(movie: AdminMovie) {
+    router.push(`/admin/showtimes?movieId=${movie.id}`);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -242,6 +251,7 @@ export default function AdminMoviesPage() {
                     <tr>
                       <th>Poster</th>
                       <th>Tên phim</th>
+                      <th>Đạo diễn</th>
                       <th>Thể loại</th>
                       <th>Thời lượng</th>
                       <th>Ngày chiếu</th>
@@ -263,6 +273,7 @@ export default function AdminMoviesPage() {
                             </div>
                           </td>
                           <td className="fw-semibold">{movie.title}</td>
+                          <td>{movie.director || "Chưa cập nhật"}</td>
                           <td>{movie.genre}</td>
                           <td>{movie.duration_min} phút</td>
                           <td>
@@ -301,6 +312,14 @@ export default function AdminMoviesPage() {
 
                               <button
                                 type="button"
+                                className="btn btn-sm btn-outline-secondary"
+                                onClick={() => handleAddShowtime(movie)}
+                              >
+                                Thêm suất chiếu
+                              </button>
+
+                              <button
+                                type="button"
                                 className="btn btn-sm btn-outline-danger"
                                 onClick={() => handleDelete(movie.id)}
                               >
@@ -312,7 +331,7 @@ export default function AdminMoviesPage() {
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={7} className="text-center text-muted py-4">
+                        <td colSpan={8} className="text-center text-muted py-4">
                           Chưa có phim nào
                         </td>
                       </tr>
@@ -391,6 +410,16 @@ export default function AdminMoviesPage() {
                         </div>
 
                         <div className="col-md-6">
+                          <label className="form-label">Đạo diễn</label>
+                          <input
+                            className="form-control"
+                            value={selectedMovie.director || "Chưa cập nhật"}
+                            readOnly
+                            disabled
+                          />
+                        </div>
+
+                        <div className="col-md-6">
                           <label className="form-label">Thể loại</label>
                           <input
                             className="form-control"
@@ -456,6 +485,14 @@ export default function AdminMoviesPage() {
                         >
                           Chuyển sang sửa
                         </button>
+
+                        <button
+                          type="button"
+                          className="btn btn-outline-secondary"
+                          onClick={() => handleAddShowtime(selectedMovie)}
+                        >
+                          Thêm suất chiếu
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -497,6 +534,18 @@ export default function AdminMoviesPage() {
                               onChange={(e) =>
                                 handleInputChange("title", e.target.value)
                               }
+                            />
+                          </div>
+
+                          <div className="col-md-6">
+                            <label className="form-label">Đạo diễn</label>
+                            <input
+                              className="form-control"
+                              value={form.director || ""}
+                              onChange={(e) =>
+                                handleInputChange("director", e.target.value)
+                              }
+                              placeholder="Nhập tên đạo diễn"
                             />
                           </div>
 
@@ -589,7 +638,7 @@ export default function AdminMoviesPage() {
 
                           <button
                             type="button"
-                            className="btn btn-secondary"
+                            className="btn btn-outline-secondary"
                             onClick={closeModal}
                           >
                             Hủy
