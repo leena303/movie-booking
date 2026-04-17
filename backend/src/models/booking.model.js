@@ -27,7 +27,7 @@ const BookingModel = {
           userId,
           showtimeId,
           totalPrice,
-          "pending", // đổi từ confirmed -> pending
+          "pending",
           name,
           phone,
           email,
@@ -86,7 +86,17 @@ const BookingModel = {
         m.title AS movie_title,
         s.start_time,
         r.name AS room_name,
-        GROUP_CONCAT(CONCAT(se.row_label, se.col_number) ORDER BY se.row_label, se.col_number SEPARATOR ', ') AS seat_names
+        GROUP_CONCAT(
+          CONCAT(se.row_label, se.col_number)
+          ORDER BY se.row_label, se.col_number
+          SEPARATOR ', '
+        ) AS seat_names,
+        CASE
+          WHEN LOWER(COALESCE(b.payment_method, '')) = 'cod' AND b.status = 'confirmed' THEN 'paid'
+          WHEN LOWER(COALESCE(b.payment_method, '')) = 'cod' THEN 'unpaid'
+          WHEN LOWER(COALESCE(b.payment_method, '')) IN ('momo', 'vnpay') THEN 'paid'
+          ELSE 'pending'
+        END AS payment_status
       FROM bookings b
       JOIN showtimes s ON b.showtime_id = s.id
       JOIN movies m ON s.movie_id = m.id
@@ -95,8 +105,17 @@ const BookingModel = {
       LEFT JOIN seats se ON bd.seat_id = se.id
       WHERE b.user_id = ?
       GROUP BY 
-        b.id, b.total_price, b.status, b.name, b.phone, b.email, b.payment_method, b.created_at,
-        m.title, s.start_time, r.name
+        b.id,
+        b.total_price,
+        b.status,
+        b.name,
+        b.phone,
+        b.email,
+        b.payment_method,
+        b.created_at,
+        m.title,
+        s.start_time,
+        r.name
       ORDER BY b.created_at DESC
       `,
       [userId],

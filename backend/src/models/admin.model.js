@@ -16,11 +16,12 @@ const AdminModel = {
       poster_url,
       status,
       release_date,
+      director,
     } = data;
 
     const [result] = await pool.query(
-      `INSERT INTO movies (title, genre, duration_min, description, poster_url, status, release_date)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO movies (title, genre, duration_min, description, poster_url, status, release_date, director)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         title,
         genre,
@@ -29,6 +30,7 @@ const AdminModel = {
         poster_url,
         status,
         release_date,
+        director,
       ],
     );
 
@@ -44,11 +46,12 @@ const AdminModel = {
       poster_url,
       status,
       release_date,
+      director,
     } = data;
 
     const [result] = await pool.query(
       `UPDATE movies
-       SET title = ?, genre = ?, duration_min = ?, description = ?, poster_url = ?, status = ?, release_date = ?
+       SET title = ?, genre = ?, duration_min = ?, description = ?, poster_url = ?, status = ?, release_date = ?, director = ?
        WHERE id = ?`,
       [
         title,
@@ -58,6 +61,7 @@ const AdminModel = {
         poster_url,
         status,
         release_date,
+        director,
         id,
       ],
     );
@@ -246,12 +250,13 @@ const AdminModel = {
 
     const [result] = await pool.query(
       `INSERT INTO users (name, email, password, phone, address, role)
-     VALUES (?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?)`,
       [name, email, password, phone || null, address || null, role || "user"],
     );
 
     return result;
   },
+
   async updateUserRole(id, role) {
     const [result] = await pool.query(
       "UPDATE users SET role = ? WHERE id = ?",
@@ -266,21 +271,18 @@ const AdminModel = {
     try {
       await connection.beginTransaction();
 
-      // 1. Xóa booking_details trước
       await connection.query(
         `
-      DELETE FROM booking_details 
-      WHERE booking_id IN (
-        SELECT id FROM bookings WHERE user_id = ?
-      )
-    `,
+        DELETE FROM booking_details 
+        WHERE booking_id IN (
+          SELECT id FROM bookings WHERE user_id = ?
+        )
+        `,
         [id],
       );
 
-      // 2. Xóa bookings
       await connection.query("DELETE FROM bookings WHERE user_id = ?", [id]);
 
-      // 3. Xóa user
       const [result] = await connection.query(
         "DELETE FROM users WHERE id = ?",
         [id],
@@ -300,22 +302,51 @@ const AdminModel = {
   async getAllBookings() {
     const [rows] = await pool.query(`
       SELECT
-        b.id,
+        b.id AS booking_id,
         b.total_price,
         b.status,
         b.created_at,
+        b.payment_method,
+        b.phone,
         u.name AS user_name,
-        u.email,
+        COALESCE(b.email, u.email) AS email,
         m.title AS movie_title,
         s.start_time,
-        r.name AS room_name
+        r.name AS room_name,
+        GROUP_CONCAT(
+          CONCAT(se.row_label, se.col_number)
+          ORDER BY se.row_label, se.col_number
+          SEPARATOR ', '
+        ) AS seat_names,
+        CASE
+          WHEN LOWER(COALESCE(b.payment_method, '')) = 'cod' AND b.status = 'confirmed' THEN 'paid'
+          WHEN LOWER(COALESCE(b.payment_method, '')) = 'cod' THEN 'unpaid'
+          WHEN LOWER(COALESCE(b.payment_method, '')) IN ('momo', 'vnpay') THEN 'paid'
+          ELSE 'pending'
+        END AS payment_status
       FROM bookings b
       JOIN users u ON b.user_id = u.id
       JOIN showtimes s ON b.showtime_id = s.id
       JOIN movies m ON s.movie_id = m.id
       JOIN rooms r ON s.room_id = r.id
+      LEFT JOIN booking_details bd ON b.id = bd.booking_id
+      LEFT JOIN seats se ON bd.seat_id = se.id
+      GROUP BY
+        b.id,
+        b.total_price,
+        b.status,
+        b.created_at,
+        b.payment_method,
+        b.phone,
+        b.email,
+        u.name,
+        u.email,
+        m.title,
+        s.start_time,
+        r.name
       ORDER BY b.created_at DESC
     `);
+
     return rows;
   },
 

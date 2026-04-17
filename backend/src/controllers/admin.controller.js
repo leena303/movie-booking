@@ -177,7 +177,7 @@ const adminController = {
     }
   },
 
-  // ================= USERS (FIX CHÍNH) =================
+  // ================= USERS =================
   async getAllUsers(req, res) {
     try {
       const data = await AdminModel.getAllUsers();
@@ -188,7 +188,6 @@ const adminController = {
     }
   },
 
-  // ✅ CREATE USER
   async createUser(req, res) {
     try {
       const result = await AdminModel.createUser(req.body);
@@ -206,7 +205,6 @@ const adminController = {
   async updateUser(req, res) {
     try {
       await AdminModel.updateUser(req.params.id, req.body);
-
       return res.json({ message: "Update user successfully" });
     } catch (error) {
       console.error("Update user error:", error);

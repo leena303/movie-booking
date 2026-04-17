@@ -34,10 +34,10 @@ router.delete("/seats/:id", adminController.deleteSeat);
 // ================= USERS (FIX CHÍNH Ở ĐÂY) =================
 router.get("/users", adminController.getAllUsers);
 
-// ✅ thêm mới user
+// thêm mới user
 router.post("/users", adminController.createUser);
 
-// ✅ update full user
+// update full user
 router.put("/users/:id", adminController.updateUser);
 
 // update role riêng
