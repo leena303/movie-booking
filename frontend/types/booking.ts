@@ -11,6 +11,7 @@ export interface BookingHistoryItem {
   phone?: string;
   email?: string;
   payment_method?: string;
+  payment_status?: string;
 }
 
 export type CreateBookingPayload = {
