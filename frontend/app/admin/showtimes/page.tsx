@@ -576,7 +576,6 @@ function AdminShowtimesContent() {
                             <th>Phòng</th>
                             <th>Bắt đầu</th>
                             <th>Kết thúc</th>
-                            <th>Ghế đã đặt</th>
                             <th>Trạng thái suất</th>
                             <th>Thao tác</th>
                           </tr>
@@ -603,12 +602,6 @@ function AdminShowtimesContent() {
                                         )?.toISOString(),
                                       )
                                     : "N/A"}
-                                </td>
-                                <td>
-                                  {typeof showtime.booked_seats_count ===
-                                  "number"
-                                    ? showtime.booked_seats_count
-                                    : "Chưa có dữ liệu"}
                                 </td>
                                 <td>
                                   {
