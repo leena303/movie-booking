@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { AdminMovie, AdminRoom, AdminShowtime } from "@/types/admin";
 import { adminService } from "@/services/admin";
@@ -25,7 +25,7 @@ const initialForm: ShowtimeForm = {
   start_time: "",
 };
 
-export default function AdminShowtimesPage() {
+function AdminShowtimesContent() {
   const searchParams = useSearchParams();
 
   const [showtimes, setShowtimes] = useState<AdminShowtime[]>([]);
@@ -383,7 +383,7 @@ export default function AdminShowtimesPage() {
               </div>
 
               <div className="col-md-2">
-                <label className="form-label">Trạng thái</label>
+                <label className="form-label">Trạng thái suất chiếu</label>
                 <select
                   className="form-select"
                   value={statusFilter}
@@ -576,7 +576,7 @@ export default function AdminShowtimesPage() {
                             <th>Phòng</th>
                             <th>Bắt đầu</th>
                             <th>Kết thúc</th>
-                            {/* <th>Ghế đã đặt</th> */}
+                            <th>Ghế đã đặt</th>
                             <th>Trạng thái suất</th>
                             <th>Thao tác</th>
                           </tr>
@@ -604,12 +604,12 @@ export default function AdminShowtimesPage() {
                                       )
                                     : "N/A"}
                                 </td>
-                                {/* <td>
+                                <td>
                                   {typeof showtime.booked_seats_count ===
                                   "number"
                                     ? showtime.booked_seats_count
                                     : "Chưa có dữ liệu"}
-                                </td> */}
+                                </td>
                                 <td>
                                   {
                                     getShowtimeStatus(
@@ -744,5 +744,15 @@ export default function AdminShowtimesPage() {
         </>
       )}
     </>
+  );
+}
+
+export default function AdminShowtimesPage() {
+  return (
+    <Suspense
+      fallback={<div className="container py-4">Đang tải lịch chiếu...</div>}
+    >
+      <AdminShowtimesContent />
+    </Suspense>
   );
 }
