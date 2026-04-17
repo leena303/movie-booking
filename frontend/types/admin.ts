@@ -17,6 +17,7 @@ export interface AdminMovie {
   poster_url: string;
   status: "now_showing" | "coming_soon";
   release_date: string;
+  director?: string;
 }
 
 export interface AdminShowtime {
@@ -72,6 +73,7 @@ export interface CreateMoviePayload {
   poster_url: string;
   status: "now_showing" | "coming_soon";
   release_date: string;
+  director?: string;
 }
 
 export interface CreateShowtimePayload {
