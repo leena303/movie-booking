@@ -8,24 +8,40 @@ interface Props {
   onToggleSeat: (seatId: number) => void;
 }
 
+function groupSeatsByRow(seatArray: Seat[]) {
+  const grouped = new Map<string, Seat[]>();
+
+  seatArray.forEach((seat) => {
+    const row = (seat.row_label || "").trim().toUpperCase();
+    if (!row) return;
+
+    if (!grouped.has(row)) {
+      grouped.set(row, []);
+    }
+
+    grouped.get(row)?.push(seat);
+  });
+
+  return Array.from(grouped.entries())
+    .sort(([rowA], [rowB]) => rowA.localeCompare(rowB, "en"))
+    .map(([row, rowSeats]) => ({
+      row,
+      seats: rowSeats
+        .slice()
+        .sort((a, b) => a.col_number - b.col_number)
+        .filter((seat) => seat.col_number >= 1 && seat.col_number <= 6),
+    }))
+    .filter((group) => group.seats.length > 0);
+}
+
 export default function SeatMap({ seats, selectedSeats, onToggleSeat }: Props) {
   const safeSeats = Array.isArray(seats) ? seats : [];
+
   const normalSeats = safeSeats.filter((seat) => seat.type !== "vip");
   const vipSeats = safeSeats.filter((seat) => seat.type === "vip");
 
-  const chunkSeats = (seatArray: Seat[], rows: number) => {
-    const result: Seat[][] = [];
-    const perRow = Math.ceil(seatArray.length / rows);
-
-    for (let i = 0; i < rows; i++) {
-      result.push(seatArray.slice(i * perRow, (i + 1) * perRow));
-    }
-
-    return result;
-  };
-
-  const normalRows = chunkSeats(normalSeats, 4);
-  const vipRows = chunkSeats(vipSeats, 3);
+  const normalRows = groupSeatsByRow(normalSeats);
+  const vipRows = groupSeatsByRow(vipSeats);
 
   const renderSeatButton = (seat: Seat) => {
     const isSelected = selectedSeats.includes(seat.id);
@@ -66,6 +82,26 @@ export default function SeatMap({ seats, selectedSeats, onToggleSeat }: Props) {
     );
   };
 
+  const renderSeatRows = (
+    title: string,
+    rows: { row: string; seats: Seat[] }[],
+  ) => {
+    if (!rows.length) return null;
+
+    return (
+      <div>
+        <h6 className="fw-bold mb-2">{title}</h6>
+        <div className="d-flex flex-column gap-3">
+          {rows.map((rowGroup) => (
+            <div key={rowGroup.row} className="row g-3">
+              {rowGroup.seats.map(renderSeatButton)}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="d-flex flex-column gap-4">
       <div
@@ -75,27 +111,8 @@ export default function SeatMap({ seats, selectedSeats, onToggleSeat }: Props) {
         Màn hình
       </div>
 
-      <div>
-        <h6 className="fw-bold mb-2">Ghế thường</h6>
-        <div className="d-flex flex-column gap-3">
-          {normalRows.map((row, index) => (
-            <div key={index} className="row g-3">
-              {row.map(renderSeatButton)}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div>
-        <h6 className="fw-bold mb-2">Ghế VIP</h6>
-        <div className="d-flex flex-column gap-3">
-          {vipRows.map((row, index) => (
-            <div key={index} className="row g-3">
-              {row.map(renderSeatButton)}
-            </div>
-          ))}
-        </div>
-      </div>
+      {renderSeatRows("Ghế thường", normalRows)}
+      {renderSeatRows("Ghế VIP", vipRows)}
 
       <div className="d-flex flex-wrap gap-4 small">
         <Legend color="#198754" label="Ghế thường" />
