@@ -6,6 +6,19 @@ import { BookingHistoryItem } from "@/types/booking";
 import { useAuth } from "@/hooks/useAuth";
 import ProtectAuth from "@/components/auth/ProtectAuth";
 
+function statusText(status: string) {
+  switch (status) {
+    case "confirmed":
+      return "Đã xác nhận";
+    case "pending":
+      return "Chờ xác nhận";
+    case "cancelled":
+      return "Đã hủy";
+    default:
+      return status;
+  }
+}
+
 function MyBookingsContent() {
   const { token } = useAuth();
   const [bookings, setBookings] = useState<BookingHistoryItem[]>([]);
@@ -76,6 +89,18 @@ function MyBookingsContent() {
                   </p>
 
                   <p className="mb-1">
+                    <strong>Ghế đã đặt:</strong>{" "}
+                    {item.seat_names || "Chưa có dữ liệu"}
+                  </p>
+
+                  <p className="mb-1">
+                    <strong>Thời gian đặt vé:</strong>{" "}
+                    {item.created_at
+                      ? new Date(item.created_at).toLocaleString("vi-VN")
+                      : "Chưa có dữ liệu"}
+                  </p>
+
+                  <p className="mb-1">
                     <strong>Tổng tiền:</strong>{" "}
                     <span className="text-danger fw-semibold">
                       {Number(item.total_price).toLocaleString("vi-VN")}đ
@@ -93,7 +118,7 @@ function MyBookingsContent() {
                             : "bg-secondary"
                       }`}
                     >
-                      {item.status}
+                      {statusText(item.status)}
                     </span>
                   </p>
                 </div>
