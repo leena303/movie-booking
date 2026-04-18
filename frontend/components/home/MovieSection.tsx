@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Movie, MovieStatus, Showtime } from "@/types/movie";
 import MovieCard from "../movie/MovieCard";
 import { useMovies } from "@/hooks/useMovies";
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
 import { moviesService } from "@/services/movies";
+
+const MOVIES_PER_PAGE = 4;
 
 export default function MovieSection() {
   const [activeTab, setActiveTab] = useState<MovieStatus>("now_showing");
@@ -20,6 +22,8 @@ export default function MovieSection() {
   const [showModal, setShowModal] = useState(false);
   const [loadingShowtimes, setLoadingShowtimes] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+
+  const [currentSlide, setCurrentSlide] = useState(0);
 
   async function handleBook(movie: Movie) {
     if (!token) {
@@ -61,6 +65,31 @@ export default function MovieSection() {
     router.push(`/booking/${showtimeId}`);
   }
 
+  const safeMovies = useMemo(() => {
+    return Array.isArray(movies) ? movies : [];
+  }, [movies]);
+
+  const totalSlides = Math.ceil(safeMovies.length / MOVIES_PER_PAGE);
+
+  const visibleMovies = useMemo(() => {
+    const start = currentSlide * MOVIES_PER_PAGE;
+    const end = start + MOVIES_PER_PAGE;
+    return safeMovies.slice(start, end);
+  }, [safeMovies, currentSlide]);
+
+  function handlePrevSlide() {
+    setCurrentSlide((prev) => Math.max(prev - 1, 0));
+  }
+
+  function handleNextSlide() {
+    setCurrentSlide((prev) => Math.min(prev + 1, totalSlides - 1));
+  }
+
+  function handleChangeTab(tab: MovieStatus) {
+    setActiveTab(tab);
+    setCurrentSlide(0);
+  }
+
   const renderContent = () => {
     if (loading) {
       return <div className="text-center py-5">Đang tải phim...</div>;
@@ -70,7 +99,7 @@ export default function MovieSection() {
       return <div className="alert alert-danger text-center">{error}</div>;
     }
 
-    if (!movies || !Array.isArray(movies) || movies.length === 0) {
+    if (safeMovies.length === 0) {
       return (
         <div className="bg-light rounded-4 py-5 text-center">
           <p className="text-muted mb-0">Chưa có phim trong mục này.</p>
@@ -79,24 +108,70 @@ export default function MovieSection() {
     }
 
     return (
-      <div className="row g-4">
-        {movies.map((movie) => {
-          const isActive = activeMovie?.id === movie.id;
-          const hasActiveMovie = !!activeMovie;
+      <div className="position-relative">
+        {safeMovies.length > MOVIES_PER_PAGE && (
+          <>
+            <button
+              type="button"
+              className="btn btn-light shadow-sm position-absolute top-50 start-0 translate-middle-y rounded-circle"
+              style={{ zIndex: 2, width: 44, height: 44 }}
+              onClick={handlePrevSlide}
+              disabled={currentSlide === 0}
+            >
+              ←
+            </button>
 
-          return (
-            <div key={movie.id} className="col-6 col-md-4 col-lg-3 d-flex">
-              <div className="w-100">
-                <MovieCard
-                  movie={movie}
-                  onBook={handleBook}
-                  isHidden={false}
-                  isDimmed={hasActiveMovie && !isActive}
+            <button
+              type="button"
+              className="btn btn-light shadow-sm position-absolute top-50 end-0 translate-middle-y rounded-circle"
+              style={{ zIndex: 2, width: 44, height: 44 }}
+              onClick={handleNextSlide}
+              disabled={currentSlide >= totalSlides - 1}
+            >
+              →
+            </button>
+          </>
+        )}
+
+        <div className="px-0 px-md-4">
+          <div className="row g-4">
+            {visibleMovies.map((movie) => {
+              const isActive = activeMovie?.id === movie.id;
+              const hasActiveMovie = !!activeMovie;
+
+              return (
+                <div key={movie.id} className="col-12 col-sm-6 col-lg-3 d-flex">
+                  <div className="w-100">
+                    <MovieCard
+                      movie={movie}
+                      onBook={handleBook}
+                      isHidden={false}
+                      isDimmed={hasActiveMovie && !isActive}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {totalSlides > 1 && (
+            <div className="d-flex justify-content-center gap-2 mt-4">
+              {Array.from({ length: totalSlides }).map((_, index) => (
+                <button
+                  key={index}
+                  type="button"
+                  className={`btn btn-sm rounded-circle p-0 ${
+                    index === currentSlide
+                      ? "btn-danger"
+                      : "btn-outline-secondary"
+                  }`}
+                  style={{ width: 12, height: 12 }}
+                  onClick={() => setCurrentSlide(index)}
                 />
-              </div>
+              ))}
             </div>
-          );
-        })}
+          )}
+        </div>
       </div>
     );
   };
@@ -118,7 +193,7 @@ export default function MovieSection() {
                 ? "btn-danger shadow-sm"
                 : "btn-light text-muted"
             }`}
-            onClick={() => setActiveTab("now_showing")}
+            onClick={() => handleChangeTab("now_showing")}
           >
             Đang chiếu
           </button>
@@ -129,7 +204,7 @@ export default function MovieSection() {
                 ? "btn-danger shadow-sm"
                 : "btn-light text-muted"
             }`}
-            onClick={() => setActiveTab("coming_soon")}
+            onClick={() => handleChangeTab("coming_soon")}
           >
             Sắp chiếu
           </button>
@@ -149,6 +224,7 @@ export default function MovieSection() {
                     {activeMovie ? ` - ${activeMovie.title}` : ""}
                   </h5>
                   <button
+                    type="button"
                     className="btn-close"
                     onClick={handleCloseModal}
                   ></button>
@@ -172,6 +248,7 @@ export default function MovieSection() {
                     showtimes.map((st) => (
                       <button
                         key={st.id}
+                        type="button"
                         className="btn btn-outline-danger w-100 mb-2"
                         onClick={() => handleSelectShowtime(st.id)}
                       >
