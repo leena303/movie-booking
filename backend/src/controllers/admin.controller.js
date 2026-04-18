@@ -1,5 +1,13 @@
 const AdminModel = require("../models/admin.model");
 
+function sendError(res, error, fallbackMessage) {
+  console.error(fallbackMessage, error);
+
+  return res.status(error.status || 500).json({
+    message: error.message || "Server error",
+  });
+}
+
 const adminController = {
   // ================= MOVIES =================
   async getAllMoviesAdmin(req, res) {
@@ -7,8 +15,7 @@ const adminController = {
       const data = await AdminModel.getAllMovies();
       return res.json({ message: "Get movies successfully", data });
     } catch (error) {
-      console.error("Get movies admin error:", error);
-      return res.status(500).json({ message: "Server error" });
+      return sendError(res, error, "Get movies admin error:");
     }
   },
 
@@ -20,8 +27,7 @@ const adminController = {
         insertId: result.insertId,
       });
     } catch (error) {
-      console.error("Create movie error:", error);
-      return res.status(500).json({ message: "Server error" });
+      return sendError(res, error, "Create movie error:");
     }
   },
 
@@ -30,8 +36,7 @@ const adminController = {
       await AdminModel.updateMovie(req.params.id, req.body);
       return res.json({ message: "Update movie successfully" });
     } catch (error) {
-      console.error("Update movie error:", error);
-      return res.status(500).json({ message: "Server error" });
+      return sendError(res, error, "Update movie error:");
     }
   },
 
@@ -40,8 +45,7 @@ const adminController = {
       await AdminModel.deleteMovie(req.params.id);
       return res.json({ message: "Delete movie successfully" });
     } catch (error) {
-      console.error("Delete movie error:", error);
-      return res.status(500).json({ message: "Server error" });
+      return sendError(res, error, "Delete movie error:");
     }
   },
 
@@ -51,31 +55,58 @@ const adminController = {
       const data = await AdminModel.getAllShowtimes();
       return res.json({ message: "Get showtimes successfully", data });
     } catch (error) {
-      console.error("Get showtimes error:", error);
-      return res.status(500).json({ message: "Server error" });
+      return sendError(res, error, "Get showtimes error:");
     }
   },
 
   async createShowtime(req, res) {
     try {
-      const result = await AdminModel.createShowtime(req.body);
+      const { movie_id, room_id, start_time, price, subtitle } = req.body;
+
+      if (!movie_id || !room_id || !start_time) {
+        return res.status(400).json({
+          message: "movie_id, room_id và start_time là bắt buộc",
+        });
+      }
+
+      const result = await AdminModel.createShowtime({
+        movie_id,
+        room_id,
+        start_time,
+        price,
+        subtitle,
+      });
+
       return res.status(201).json({
         message: "Create showtime successfully",
         insertId: result.insertId,
       });
     } catch (error) {
-      console.error("Create showtime error:", error);
-      return res.status(500).json({ message: "Server error" });
+      return sendError(res, error, "Create showtime error:");
     }
   },
 
   async updateShowtime(req, res) {
     try {
-      await AdminModel.updateShowtime(req.params.id, req.body);
+      const { movie_id, room_id, start_time, price, subtitle } = req.body;
+
+      if (!movie_id || !room_id || !start_time) {
+        return res.status(400).json({
+          message: "movie_id, room_id và start_time là bắt buộc",
+        });
+      }
+
+      await AdminModel.updateShowtime(req.params.id, {
+        movie_id,
+        room_id,
+        start_time,
+        price,
+        subtitle,
+      });
+
       return res.json({ message: "Update showtime successfully" });
     } catch (error) {
-      console.error("Update showtime error:", error);
-      return res.status(500).json({ message: "Server error" });
+      return sendError(res, error, "Update showtime error:");
     }
   },
 
@@ -84,8 +115,7 @@ const adminController = {
       await AdminModel.deleteShowtime(req.params.id);
       return res.json({ message: "Delete showtime successfully" });
     } catch (error) {
-      console.error("Delete showtime error:", error);
-      return res.status(500).json({ message: "Server error" });
+      return sendError(res, error, "Delete showtime error:");
     }
   },
 
@@ -95,8 +125,7 @@ const adminController = {
       const data = await AdminModel.getAllRooms();
       return res.json({ message: "Get rooms successfully", data });
     } catch (error) {
-      console.error("Get rooms error:", error);
-      return res.status(500).json({ message: "Server error" });
+      return sendError(res, error, "Get rooms error:");
     }
   },
 
@@ -108,8 +137,7 @@ const adminController = {
         insertId: result.insertId,
       });
     } catch (error) {
-      console.error("Create room error:", error);
-      return res.status(500).json({ message: "Server error" });
+      return sendError(res, error, "Create room error:");
     }
   },
 
@@ -118,8 +146,7 @@ const adminController = {
       await AdminModel.updateRoom(req.params.id, req.body);
       return res.json({ message: "Update room successfully" });
     } catch (error) {
-      console.error("Update room error:", error);
-      return res.status(500).json({ message: "Server error" });
+      return sendError(res, error, "Update room error:");
     }
   },
 
@@ -128,8 +155,7 @@ const adminController = {
       await AdminModel.deleteRoom(req.params.id);
       return res.json({ message: "Delete room successfully" });
     } catch (error) {
-      console.error("Delete room error:", error);
-      return res.status(500).json({ message: "Server error" });
+      return sendError(res, error, "Delete room error:");
     }
   },
 
@@ -139,8 +165,7 @@ const adminController = {
       const data = await AdminModel.getSeatsByRoom(req.params.roomId);
       return res.json({ message: "Get seats successfully", data });
     } catch (error) {
-      console.error("Get seats error:", error);
-      return res.status(500).json({ message: "Server error" });
+      return sendError(res, error, "Get seats error:");
     }
   },
 
@@ -152,8 +177,7 @@ const adminController = {
         insertId: result.insertId,
       });
     } catch (error) {
-      console.error("Create seat error:", error);
-      return res.status(500).json({ message: "Server error" });
+      return sendError(res, error, "Create seat error:");
     }
   },
 
@@ -162,8 +186,7 @@ const adminController = {
       await AdminModel.updateSeat(req.params.id, req.body);
       return res.json({ message: "Update seat successfully" });
     } catch (error) {
-      console.error("Update seat error:", error);
-      return res.status(500).json({ message: "Server error" });
+      return sendError(res, error, "Update seat error:");
     }
   },
 
@@ -172,8 +195,7 @@ const adminController = {
       await AdminModel.deleteSeat(req.params.id);
       return res.json({ message: "Delete seat successfully" });
     } catch (error) {
-      console.error("Delete seat error:", error);
-      return res.status(500).json({ message: "Server error" });
+      return sendError(res, error, "Delete seat error:");
     }
   },
 
@@ -183,22 +205,19 @@ const adminController = {
       const data = await AdminModel.getAllUsers();
       return res.json({ message: "Get users successfully", data });
     } catch (error) {
-      console.error("Get users error:", error);
-      return res.status(500).json({ message: "Server error" });
+      return sendError(res, error, "Get users error:");
     }
   },
 
   async createUser(req, res) {
     try {
       const result = await AdminModel.createUser(req.body);
-
       return res.status(201).json({
         message: "Create user successfully",
         insertId: result.insertId,
       });
     } catch (error) {
-      console.error("Create user error:", error);
-      return res.status(500).json({ message: "Server error" });
+      return sendError(res, error, "Create user error:");
     }
   },
 
@@ -207,8 +226,7 @@ const adminController = {
       await AdminModel.updateUser(req.params.id, req.body);
       return res.json({ message: "Update user successfully" });
     } catch (error) {
-      console.error("Update user error:", error);
-      return res.status(500).json({ message: "Server error" });
+      return sendError(res, error, "Update user error:");
     }
   },
 
@@ -218,8 +236,7 @@ const adminController = {
       await AdminModel.updateUserRole(req.params.id, role);
       return res.json({ message: "Update user role successfully" });
     } catch (error) {
-      console.error("Update user role error:", error);
-      return res.status(500).json({ message: "Server error" });
+      return sendError(res, error, "Update user role error:");
     }
   },
 
@@ -233,11 +250,7 @@ const adminController = {
         result,
       });
     } catch (error) {
-      console.error("Delete user error:", error);
-      return res.status(500).json({
-        message: error.message || "Server error",
-        error,
-      });
+      return sendError(res, error, "Delete user error:");
     }
   },
 
@@ -247,8 +260,7 @@ const adminController = {
       const data = await AdminModel.getAllBookings();
       return res.json({ message: "Get bookings successfully", data });
     } catch (error) {
-      console.error("Get bookings error:", error);
-      return res.status(500).json({ message: "Server error" });
+      return sendError(res, error, "Get bookings error:");
     }
   },
 
@@ -258,8 +270,7 @@ const adminController = {
       await AdminModel.updateBookingStatus(req.params.id, status);
       return res.json({ message: "Update booking status successfully" });
     } catch (error) {
-      console.error("Update booking status error:", error);
-      return res.status(500).json({ message: "Server error" });
+      return sendError(res, error, "Update booking status error:");
     }
   },
 };

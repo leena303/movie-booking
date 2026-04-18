@@ -1,5 +1,24 @@
 const pool = require("../config/db");
 
+function toMySQLDateTime(value) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    const error = new Error("Ngày giờ chiếu không hợp lệ");
+    error.status = 400;
+    throw error;
+  }
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  const seconds = String(date.getSeconds()).padStart(2, "0");
+
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+}
+
 const AdminModel = {
   // Movies
   async getAllMovies() {
@@ -90,25 +109,105 @@ const AdminModel = {
   },
 
   async createShowtime(data) {
-    const { movie_id, room_id, start_time, price } = data;
+    const { movie_id, room_id, start_time, price, subtitle } = data;
+
+    if (!movie_id || !room_id || !start_time) {
+      const error = new Error("movie_id, room_id và start_time là bắt buộc");
+      error.status = 400;
+      throw error;
+    }
+
+    const mysqlStartTime = toMySQLDateTime(start_time);
+
+    const [[movie]] = await pool.query("SELECT id FROM movies WHERE id = ?", [
+      movie_id,
+    ]);
+    if (!movie) {
+      const error = new Error("Phim không tồn tại");
+      error.status = 404;
+      throw error;
+    }
+
+    const [[room]] = await pool.query("SELECT id FROM rooms WHERE id = ?", [
+      room_id,
+    ]);
+    if (!room) {
+      const error = new Error("Phòng không tồn tại");
+      error.status = 404;
+      throw error;
+    }
+
+    const [[duplicated]] = await pool.query(
+      `SELECT id FROM showtimes WHERE room_id = ? AND start_time = ? LIMIT 1`,
+      [room_id, mysqlStartTime],
+    );
+    if (duplicated) {
+      const error = new Error("Phòng này đã có suất chiếu ở thời gian đã chọn");
+      error.status = 409;
+      throw error;
+    }
+
+    const finalPrice = Number.isFinite(Number(price)) ? Number(price) : 0;
+    const finalSubtitle = subtitle || "Phụ đề";
 
     const [result] = await pool.query(
-      `INSERT INTO showtimes (movie_id, room_id, start_time, price)
-       VALUES (?, ?, ?, ?)`,
-      [movie_id, room_id, start_time, price],
+      `INSERT INTO showtimes (movie_id, room_id, start_time, price, subtitle)
+       VALUES (?, ?, ?, ?, ?)`,
+      [movie_id, room_id, mysqlStartTime, finalPrice, finalSubtitle],
     );
 
     return result;
   },
 
   async updateShowtime(id, data) {
-    const { movie_id, room_id, start_time, price } = data;
+    const { movie_id, room_id, start_time, price, subtitle } = data;
+
+    if (!movie_id || !room_id || !start_time) {
+      const error = new Error("movie_id, room_id và start_time là bắt buộc");
+      error.status = 400;
+      throw error;
+    }
+
+    const mysqlStartTime = toMySQLDateTime(start_time);
+
+    const [[movie]] = await pool.query("SELECT id FROM movies WHERE id = ?", [
+      movie_id,
+    ]);
+    if (!movie) {
+      const error = new Error("Phim không tồn tại");
+      error.status = 404;
+      throw error;
+    }
+
+    const [[room]] = await pool.query("SELECT id FROM rooms WHERE id = ?", [
+      room_id,
+    ]);
+    if (!room) {
+      const error = new Error("Phòng không tồn tại");
+      error.status = 404;
+      throw error;
+    }
+
+    const [[duplicated]] = await pool.query(
+      `SELECT id FROM showtimes 
+       WHERE room_id = ? AND start_time = ? AND id <> ? 
+       LIMIT 1`,
+      [room_id, mysqlStartTime, id],
+    );
+    if (duplicated) {
+      const error = new Error("Phòng này đã có suất chiếu ở thời gian đã chọn");
+      error.status = 409;
+      throw error;
+    }
+
+    const finalPrice = Number.isFinite(Number(price)) ? Number(price) : 0;
+    const finalSubtitle = subtitle || "Phụ đề";
 
     const [result] = await pool.query(
       `UPDATE showtimes
-       SET movie_id = ?, room_id = ?, start_time = ?, price = ?
+       SET movie_id = ?, room_id = ?, start_time = ?, price = ?, subtitle = ?
        WHERE id = ?`,
-      [movie_id, room_id, start_time, price, id],
+      [movie_id, room_id, mysqlStartTime, finalPrice, finalSubtitle, id],
     );
 
     return result;
