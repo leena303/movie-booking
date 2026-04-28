@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import { Movie, Showtime } from "@/types/movie";
@@ -8,9 +8,14 @@ import { moviesService } from "@/services/movies";
 import { useAuth } from "@/hooks/useAuth";
 
 export default function MovieDetailPage() {
-  const { id } = useParams();
+  const params = useParams<{ id: string }>();
   const router = useRouter();
-  const { token, loadToken } = useAuth();
+  const { token } = useAuth();
+
+  const movieId = useMemo(() => {
+    const id = Number(params.id);
+    return Number.isNaN(id) ? null : id;
+  }, [params.id]);
 
   const [movie, setMovie] = useState<Movie | null>(null);
   const [loading, setLoading] = useState(true);
@@ -20,16 +25,18 @@ export default function MovieDetailPage() {
   const [showModal, setShowModal] = useState(false);
 
   useEffect(() => {
-    loadToken();
-  }, [loadToken]);
-
-  useEffect(() => {
     async function fetchMovie() {
+      if (!movieId) {
+        setError("ID phim không hợp lệ");
+        setLoading(false);
+        return;
+      }
+
       try {
         setLoading(true);
         setError("");
 
-        const found = await moviesService.getMovieById(Number(id));
+        const found = await moviesService.getMovieById(movieId);
 
         if (!found) {
           setError("Không tìm thấy phim");
@@ -43,8 +50,26 @@ export default function MovieDetailPage() {
       }
     }
 
-    if (id) fetchMovie();
-  }, [id]);
+    fetchMovie();
+  }, [movieId]);
+
+  async function handleBooking() {
+    if (!token) {
+      router.push("/login");
+      return;
+    }
+
+    if (!movie) return;
+
+    try {
+      const data = await moviesService.getShowtimesByMovieId(movie.id);
+      setShowtimes(data);
+      setShowModal(true);
+    } catch (err: unknown) {
+      console.error(err);
+      alert("Không tải được suất chiếu");
+    }
+  }
 
   if (loading) {
     return (
@@ -76,6 +101,7 @@ export default function MovieDetailPage() {
                 alt={movie.title}
                 fill
                 className="object-fit-cover rounded-start"
+                sizes="(max-width: 768px) 100vw, 33vw"
               />
             </div>
           </div>
@@ -120,26 +146,7 @@ export default function MovieDetailPage() {
               </div>
 
               <div className="d-flex gap-2">
-                <button
-                  className="btn btn-danger"
-                  onClick={async () => {
-                    if (!token) {
-                      router.push("/login");
-                      return;
-                    }
-
-                    try {
-                      const data = await moviesService.getShowtimesByMovieId(
-                        movie.id,
-                      );
-                      setShowtimes(data);
-                      setShowModal(true);
-                    } catch (err) {
-                      console.error(err);
-                      alert("Không tải được suất chiếu");
-                    }
-                  }}
-                >
+                <button className="btn btn-danger" onClick={handleBooking}>
                   Đặt vé
                 </button>
 
@@ -163,9 +170,10 @@ export default function MovieDetailPage() {
                 <div className="modal-header">
                   <h5 className="modal-title">Chọn suất chiếu</h5>
                   <button
+                    type="button"
                     className="btn-close"
                     onClick={() => setShowModal(false)}
-                  ></button>
+                  />
                 </div>
 
                 <div className="modal-body">
@@ -176,6 +184,7 @@ export default function MovieDetailPage() {
                   {showtimes.map((st) => (
                     <button
                       key={st.id}
+                      type="button"
                       className="btn btn-outline-danger w-100 mb-2"
                       onClick={() => {
                         setShowModal(false);
@@ -194,7 +203,7 @@ export default function MovieDetailPage() {
             className="modal-backdrop show"
             style={{ zIndex: 1040 }}
             onClick={() => setShowModal(false)}
-          ></div>
+          />
         </>
       )}
     </div>
