@@ -1,23 +1,30 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 export default function Footer() {
+  const pathname = usePathname();
+
+  if (pathname.startsWith("/admin")) {
+    return null;
+  }
+
   return (
     <footer className="bg-light border-top mt-5">
       <div className="container py-5">
         <div className="row g-4">
           <div className="col-md-4">
-            <h5 className="text-danger fw-bold">MovieBooking</h5>
+            <h5 className="text-danger fw-bold">CineGo</h5>
             <p className="text-muted small mt-3">
-              MovieBooking là nền tảng đặt vé xem phim trực tuyến nhanh chóng,
-              tiện lợi và hiện đại. Chúng tôi giúp bạn dễ dàng tìm kiếm phim,
-              lựa chọn suất chiếu và đặt vé chỉ trong vài bước đơn giản.
+              CineGo là nền tảng đặt vé xem phim trực tuyến nhanh chóng, tiện
+              lợi và hiện đại. Chúng tôi giúp bạn dễ dàng tìm kiếm phim, lựa
+              chọn suất chiếu và đặt vé chỉ trong vài bước đơn giản.
             </p>
             <p className="text-muted small">
               Với giao diện thân thiện, tốc độ nhanh và trải nghiệm mượt mà,
-              MovieBooking mang đến cho bạn hành trình giải trí trọn vẹn mọi
-              lúc, mọi nơi.
+              CineGo mang đến cho bạn hành trình giải trí trọn vẹn mọi lúc, mọi
+              nơi.
             </p>
           </div>
 
@@ -63,9 +70,7 @@ export default function Footer() {
 
           <div className="col-md-4">
             <h6 className="fw-semibold mb-3">Liên hệ</h6>
-            <p className="text-muted small mb-1">
-              Email: support@moviebooking.com
-            </p>
+            <p className="text-muted small mb-1">Email: support@cinego.com</p>
             <p className="text-muted small mt-2">
               Giờ làm việc: 8:00 - 22:00 (Tất cả các ngày, kể cả Lễ Tết)
             </p>
@@ -87,7 +92,7 @@ export default function Footer() {
       </div>
 
       <div className="text-center py-3 border-top small text-muted">
-        © 2026 MovieBooking. All rights reserved.
+        © 2026 CineGo. All rights reserved.
       </div>
     </footer>
   );
