@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { Eye, Pencil, Trash2 } from "lucide-react";
 import { AdminUser } from "@/types/admin";
 import { UserForm } from "@/types/user";
 import { adminService } from "@/services/admin";
@@ -21,6 +22,7 @@ export default function AdminUsersPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+
   const [form, setForm] = useState<UserForm>(initialForm);
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [modalMode, setModalMode] = useState<ModalMode>(null);
@@ -30,6 +32,7 @@ export default function AdminUsersPage() {
     try {
       setLoading(true);
       setMessage("");
+
       const data = await adminService.getUsers();
       setUsers(Array.isArray(data) ? data : []);
     } catch (error: unknown) {
@@ -66,6 +69,19 @@ export default function AdminUsersPage() {
       document.body.style.overflow = "auto";
     };
   }, [modalMode]);
+
+  const isError = useMemo(() => {
+    const lower = message.toLowerCase();
+
+    return (
+      lower.includes("không") ||
+      lower.includes("lỗi") ||
+      lower.includes("thất bại") ||
+      lower.includes("vui lòng") ||
+      lower.includes("khớp") ||
+      lower.includes("error")
+    );
+  }, [message]);
 
   function openCreate() {
     setForm(initialForm);
@@ -110,17 +126,6 @@ export default function AdminUsersPage() {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
   }
-
-  const isError = useMemo(() => {
-    const lower = message.toLowerCase();
-    return (
-      lower.includes("không") ||
-      lower.includes("lỗi") ||
-      lower.includes("thất bại") ||
-      lower.includes("vui lòng") ||
-      lower.includes("khớp")
-    );
-  }, [message]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -184,15 +189,16 @@ export default function AdminUsersPage() {
 
         await adminService.updateUser(selectedUser.id, payload);
       } else {
-        await adminService.createUser({
+        const payload: UserForm = {
           name: form.name,
           email: form.email,
           phone: form.phone,
           address: form.address,
           role: form.role,
           password: form.password,
-          confirmPassword: form.confirmPassword,
-        });
+        };
+
+        await adminService.createUser(payload);
       }
 
       await fetchUsers();
@@ -205,12 +211,13 @@ export default function AdminUsersPage() {
   }
 
   async function handleDelete(userId: number) {
-    const confirmed = window.confirm("Xóa user này?");
+    const confirmed = window.confirm("Bạn có chắc muốn xóa người dùng này?");
     if (!confirmed) return;
 
     try {
+      setMessage("");
       await adminService.deleteUser(userId);
-      setUsers((prev) => prev.filter((u) => u.id !== userId));
+      setUsers((prev) => prev.filter((user) => user.id !== userId));
     } catch (err: unknown) {
       setMessage(
         err instanceof Error ? err.message : "Không thể xóa người dùng",
@@ -220,11 +227,20 @@ export default function AdminUsersPage() {
 
   return (
     <>
-      <div>
-        <div className="d-flex justify-content-between align-items-center mb-4">
-          <h2 className="mb-0">Quản lý người dùng</h2>
+      <div className="admin-page">
+        <div className="d-flex flex-column flex-xl-row justify-content-between align-items-xl-center gap-3 mb-4">
+          <div>
+            <h2 className="mb-1 fw-bold">Quản lý người dùng</h2>
+            <p className="text-muted mb-0">
+              Quản lý danh sách người dùng trong hệ thống CineGo
+            </p>
+          </div>
 
-          <button className="btn btn-primary" onClick={openCreate}>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={openCreate}
+          >
             + Thêm người dùng
           </button>
         </div>
@@ -238,19 +254,21 @@ export default function AdminUsersPage() {
         )}
 
         {loading ? (
-          <div className="alert alert-secondary">Đang tải...</div>
+          <div className="alert alert-secondary">Đang tải dữ liệu...</div>
         ) : (
-          <div className="card border-0 shadow-sm">
+          <div className="card border-0 shadow-sm admin-table-card">
             <div className="card-body p-0">
               <div className="table-responsive">
-                <table className="table table-hover align-middle mb-0">
+                <table className="table table-hover align-middle mb-0 admin-table">
                   <thead className="table-light">
                     <tr>
-                      <th>ID</th>
+                      <th style={{ width: 90 }}>ID</th>
                       <th>Tên</th>
                       <th>Email</th>
-                      <th>Role</th>
-                      <th>Hành động</th>
+                      <th style={{ width: 150 }}>Role</th>
+                      <th style={{ width: 170 }} className="text-center">
+                        Thao tác
+                      </th>
                     </tr>
                   </thead>
 
@@ -259,8 +277,11 @@ export default function AdminUsersPage() {
                       users.map((user) => (
                         <tr key={user.id}>
                           <td>{user.id}</td>
+
                           <td className="fw-semibold">{user.name}</td>
+
                           <td>{user.email}</td>
+
                           <td>
                             <span
                               className={`badge ${
@@ -273,27 +294,36 @@ export default function AdminUsersPage() {
                             </span>
                           </td>
 
-                          <td>
-                            <div className="d-flex gap-2 flex-wrap">
+                          <td className="text-center" style={{ width: 170 }}>
+                            <div className="admin-action-group">
                               <button
-                                className="btn btn-sm btn-outline-info"
+                                type="button"
+                                className="btn btn-sm btn-outline-info btn-icon"
+                                title="Xem"
+                                aria-label="Xem"
                                 onClick={() => openView(user)}
                               >
-                                Xem
+                                <Eye size={16} />
                               </button>
 
                               <button
-                                className="btn btn-sm btn-outline-primary"
+                                type="button"
+                                className="btn btn-sm btn-outline-primary btn-icon"
+                                title="Sửa"
+                                aria-label="Sửa"
                                 onClick={() => openEdit(user)}
                               >
-                                Sửa
+                                <Pencil size={16} />
                               </button>
 
                               <button
-                                className="btn btn-sm btn-outline-danger"
+                                type="button"
+                                className="btn btn-sm btn-outline-danger btn-icon"
+                                title="Xóa"
+                                aria-label="Xóa"
                                 onClick={() => handleDelete(user.id)}
                               >
-                                Xóa
+                                <Trash2 size={16} />
                               </button>
                             </div>
                           </td>
@@ -355,7 +385,9 @@ export default function AdminUsersPage() {
 
                 {message && (
                   <div
-                    className={`alert py-2 ${isError ? "alert-danger" : "alert-success"}`}
+                    className={`alert py-2 ${
+                      isError ? "alert-danger" : "alert-success"
+                    }`}
                   >
                     {message}
                   </div>
@@ -489,7 +521,7 @@ export default function AdminUsersPage() {
                           name="password"
                           placeholder={
                             modalMode === "edit"
-                              ? "Nhập mật khẩu mới (không bắt buộc)"
+                              ? "Không bắt buộc"
                               : "Nhập mật khẩu"
                           }
                           value={form.password}
@@ -509,7 +541,7 @@ export default function AdminUsersPage() {
                           name="confirmPassword"
                           placeholder={
                             modalMode === "edit"
-                              ? "Xác nhận mật khẩu mới"
+                              ? "Không bắt buộc"
                               : "Nhập lại mật khẩu"
                           }
                           value={form.confirmPassword || ""}
