@@ -1,12 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { Eye, Pencil, Trash2 } from "lucide-react";
 import { AdminMovie, CreateMoviePayload } from "@/types/admin";
 import { adminService } from "@/services/admin";
 
 type ModalMode = "create" | "edit" | "view" | null;
+
+const MOVIES_PER_PAGE = 5;
 
 const initialForm: CreateMoviePayload = {
   title: "",
@@ -32,10 +35,13 @@ export default function AdminMoviesPage() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState<CreateMoviePayload>(initialForm);
 
+  const [currentPage, setCurrentPage] = useState(1);
+
   async function fetchMovies() {
     try {
       setLoading(true);
       setError("");
+
       const data = await adminService.getMovies();
       setMovies(Array.isArray(data) ? data : []);
     } catch (err: unknown) {
@@ -66,6 +72,19 @@ export default function AdminMoviesPage() {
       document.body.style.overflow = "auto";
     };
   }, [modalMode]);
+
+  const totalPages = Math.max(1, Math.ceil(movies.length / MOVIES_PER_PAGE));
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  const paginatedMovies = useMemo(() => {
+    const start = (currentPage - 1) * MOVIES_PER_PAGE;
+    return movies.slice(start, start + MOVIES_PER_PAGE);
+  }, [movies, currentPage]);
 
   function fillFormFromMovie(movie: AdminMovie) {
     setForm({
@@ -184,6 +203,15 @@ export default function AdminMoviesPage() {
     return status === "now_showing" ? "Đang chiếu" : "Sắp chiếu";
   }
 
+  function formatDate(value?: string) {
+    if (!value) return "N/A";
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "N/A";
+
+    return date.toLocaleDateString("vi-VN");
+  }
+
   function PosterImage({
     src,
     alt,
@@ -206,7 +234,7 @@ export default function AdminMoviesPage() {
             alt={alt}
             fill
             className="object-fit-cover"
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            sizes="(max-width: 768px) 100vw, 260px"
             onError={() => setImgError(true)}
             unoptimized={
               src.startsWith("http://") || src.startsWith("https://")
@@ -221,9 +249,14 @@ export default function AdminMoviesPage() {
 
   return (
     <>
-      <div>
-        <div className="d-flex justify-content-between align-items-center mb-4">
-          <h2 className="mb-0">Quản lý phim</h2>
+      <div className="admin-page">
+        <div className="d-flex justify-content-between align-items-center gap-3 mb-4">
+          <div>
+            <h2 className="mb-1 fw-bold">Quản lý phim</h2>
+            <p className="text-muted mb-0">
+              Quản lý danh sách phim trong hệ thống CineGo
+            </p>
+          </div>
 
           <button
             type="button"
@@ -243,27 +276,27 @@ export default function AdminMoviesPage() {
         )}
 
         {!loading && (
-          <div className="card border-0 shadow-sm">
+          <div className="card border-0 shadow-sm admin-table-card">
             <div className="card-body p-0">
               <div className="table-responsive">
-                <table className="table table-hover align-middle mb-0">
+                <table className="table table-hover align-middle mb-0 admin-table">
                   <thead className="table-light">
                     <tr>
-                      <th>Poster</th>
+                      <th style={{ width: 110 }}>Poster</th>
                       <th>Tên phim</th>
-                      <th>Đạo diễn</th>
-                      <th>Thể loại</th>
-                      <th>Thời lượng</th>
-                      <th>Ngày chiếu</th>
-                      <th>Trạng thái</th>
-                      <th className="text-center">Thao tác</th>
+                      <th style={{ width: 140 }}>Ngày chiếu</th>
+                      <th style={{ width: 140 }}>Trạng thái</th>
+                      <th style={{ width: 150 }} className="text-center">
+                        Thao tác
+                      </th>
                     </tr>
                   </thead>
+
                   <tbody>
-                    {movies.length > 0 ? (
-                      movies.map((movie) => (
+                    {paginatedMovies.length > 0 ? (
+                      paginatedMovies.map((movie) => (
                         <tr key={movie.id}>
-                          <td style={{ width: 110 }}>
+                          <td>
                             <div style={{ width: 72 }}>
                               <PosterImage
                                 src={movie.poster_url}
@@ -272,15 +305,13 @@ export default function AdminMoviesPage() {
                               />
                             </div>
                           </td>
-                          <td className="fw-semibold">{movie.title}</td>
-                          <td>{movie.director || "Chưa cập nhật"}</td>
-                          <td>{movie.genre}</td>
-                          <td>{movie.duration_min} phút</td>
-                          <td>
-                            {new Date(movie.release_date).toLocaleDateString(
-                              "vi-VN",
-                            )}
+
+                          <td className="admin-table-title fw-semibold">
+                            {movie.title}
                           </td>
+
+                          <td>{formatDate(movie.release_date)}</td>
+
                           <td>
                             <span
                               className={`badge ${
@@ -292,38 +323,37 @@ export default function AdminMoviesPage() {
                               {statusText(movie.status)}
                             </span>
                           </td>
+
                           <td className="text-center">
-                            <div className="d-flex justify-content-center gap-2 flex-wrap">
+                            <div className="admin-action-group">
                               <button
                                 type="button"
-                                className="btn btn-sm btn-outline-info"
+                                className="btn btn-sm btn-outline-info btn-icon"
+                                title="Xem"
+                                aria-label="Xem"
                                 onClick={() => openViewModal(movie)}
                               >
-                                Xem
+                                <Eye size={16} />
                               </button>
 
                               <button
                                 type="button"
-                                className="btn btn-sm btn-outline-primary"
+                                className="btn btn-sm btn-outline-primary btn-icon"
+                                title="Sửa"
+                                aria-label="Sửa"
                                 onClick={() => openEditModal(movie)}
                               >
-                                Sửa
+                                <Pencil size={16} />
                               </button>
 
                               <button
                                 type="button"
-                                className="btn btn-sm btn-outline-secondary"
-                                onClick={() => handleAddShowtime(movie)}
-                              >
-                                Thêm suất chiếu
-                              </button>
-
-                              <button
-                                type="button"
-                                className="btn btn-sm btn-outline-danger"
+                                className="btn btn-sm btn-outline-danger btn-icon"
+                                title="Xóa"
+                                aria-label="Xóa"
                                 onClick={() => handleDelete(movie.id)}
                               >
-                                Xóa
+                                <Trash2 size={16} />
                               </button>
                             </div>
                           </td>
@@ -331,7 +361,7 @@ export default function AdminMoviesPage() {
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={8} className="text-center text-muted py-4">
+                        <td colSpan={5} className="text-center text-muted py-4">
                           Chưa có phim nào
                         </td>
                       </tr>
@@ -339,6 +369,58 @@ export default function AdminMoviesPage() {
                   </tbody>
                 </table>
               </div>
+
+              {movies.length > 0 && (
+                <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 px-3 py-3 border-top bg-light">
+                  <div className="text-muted small">
+                    Hiển thị{" "}
+                    <strong>{(currentPage - 1) * MOVIES_PER_PAGE + 1}</strong> -{" "}
+                    <strong>
+                      {Math.min(currentPage * MOVIES_PER_PAGE, movies.length)}
+                    </strong>{" "}
+                    trong tổng <strong>{movies.length}</strong> phim
+                  </div>
+
+                  <div className="d-flex align-items-center gap-2">
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-outline-secondary"
+                      disabled={currentPage === 1}
+                      onClick={() => setCurrentPage((prev) => prev - 1)}
+                    >
+                      Trước
+                    </button>
+
+                    {Array.from({ length: totalPages }).map((_, index) => {
+                      const page = index + 1;
+
+                      return (
+                        <button
+                          key={page}
+                          type="button"
+                          className={`btn btn-sm ${
+                            currentPage === page
+                              ? "btn-primary"
+                              : "btn-outline-primary"
+                          }`}
+                          onClick={() => setCurrentPage(page)}
+                        >
+                          {page}
+                        </button>
+                      );
+                    })}
+
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-outline-secondary"
+                      disabled={currentPage === totalPages}
+                      onClick={() => setCurrentPage((prev) => prev + 1)}
+                    >
+                      Sau
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -358,21 +440,43 @@ export default function AdminMoviesPage() {
           />
 
           <div
-            className="position-fixed top-50 start-50 translate-middle w-100 px-3"
-            style={{ maxWidth: 820, zIndex: 1050 }}
+            className="position-fixed top-50 start-50 translate-middle w-100 px-3 modal-custom"
+            style={{
+              maxWidth: 860,
+              maxHeight: "90vh",
+              zIndex: 1050,
+            }}
           >
             <div
               className="card border-0 shadow-lg"
               onClick={(e) => e.stopPropagation()}
-              style={{ borderRadius: 16 }}
+              style={{
+                borderRadius: 16,
+                overflow: "hidden",
+                maxHeight: "90vh",
+              }}
             >
-              <div className="card-body p-4">
-                <div className="d-flex justify-content-between align-items-center mb-3">
-                  <h4 className="mb-0">
-                    {modalMode === "create" && "Thêm phim"}
-                    {modalMode === "edit" && "Cập nhật phim"}
-                    {modalMode === "view" && "Chi tiết phim"}
-                  </h4>
+              <div
+                className="card-body p-4"
+                style={{
+                  maxHeight: "90vh",
+                  overflowY: "auto",
+                }}
+              >
+                <div className="d-flex justify-content-between align-items-start gap-3 mb-3">
+                  <div>
+                    <h4 className="mb-1">
+                      {modalMode === "create" && "Thêm phim"}
+                      {modalMode === "edit" && "Cập nhật phim"}
+                      {modalMode === "view" && "Chi tiết phim"}
+                    </h4>
+
+                    {selectedMovie && (
+                      <p className="text-muted small mb-0">
+                        ID phim: #{selectedMovie.id}
+                      </p>
+                    )}
+                  </div>
 
                   <button
                     type="button"
@@ -402,7 +506,7 @@ export default function AdminMoviesPage() {
                         <div className="col-md-6">
                           <label className="form-label">Tên phim</label>
                           <input
-                            className="form-control"
+                            className="form-control form-control-sm"
                             value={selectedMovie.title || ""}
                             readOnly
                             disabled
@@ -412,7 +516,7 @@ export default function AdminMoviesPage() {
                         <div className="col-md-6">
                           <label className="form-label">Đạo diễn</label>
                           <input
-                            className="form-control"
+                            className="form-control form-control-sm"
                             value={selectedMovie.director || "Chưa cập nhật"}
                             readOnly
                             disabled
@@ -422,43 +526,37 @@ export default function AdminMoviesPage() {
                         <div className="col-md-6">
                           <label className="form-label">Thể loại</label>
                           <input
-                            className="form-control"
+                            className="form-control form-control-sm"
                             value={selectedMovie.genre || ""}
                             readOnly
                             disabled
                           />
                         </div>
 
-                        <div className="col-md-4">
+                        <div className="col-md-6">
                           <label className="form-label">Thời lượng</label>
                           <input
-                            className="form-control"
+                            className="form-control form-control-sm"
                             value={`${selectedMovie.duration_min || 0} phút`}
                             readOnly
                             disabled
                           />
                         </div>
 
-                        <div className="col-md-4">
+                        <div className="col-md-6">
                           <label className="form-label">Ngày chiếu</label>
                           <input
-                            className="form-control"
-                            value={
-                              selectedMovie.release_date
-                                ? new Date(
-                                    selectedMovie.release_date,
-                                  ).toLocaleDateString("vi-VN")
-                                : ""
-                            }
+                            className="form-control form-control-sm"
+                            value={formatDate(selectedMovie.release_date)}
                             readOnly
                             disabled
                           />
                         </div>
 
-                        <div className="col-md-4">
+                        <div className="col-md-6">
                           <label className="form-label">Trạng thái</label>
                           <input
-                            className="form-control"
+                            className="form-control form-control-sm"
                             value={statusText(selectedMovie.status)}
                             readOnly
                             disabled
@@ -468,8 +566,8 @@ export default function AdminMoviesPage() {
                         <div className="col-12">
                           <label className="form-label">Mô tả</label>
                           <textarea
-                            className="form-control"
-                            rows={6}
+                            className="form-control form-control-sm"
+                            rows={5}
                             value={selectedMovie.description || ""}
                             readOnly
                             disabled
@@ -477,7 +575,7 @@ export default function AdminMoviesPage() {
                         </div>
                       </div>
 
-                      <div className="d-flex gap-2 mt-4">
+                      <div className="d-flex flex-wrap gap-2 mt-4">
                         <button
                           type="button"
                           className="btn btn-outline-primary"
@@ -505,6 +603,7 @@ export default function AdminMoviesPage() {
                         <label className="form-label fw-semibold mb-2">
                           Poster preview
                         </label>
+
                         <PosterImage
                           src={form.poster_url}
                           alt={form.title || "Poster preview"}
@@ -515,7 +614,7 @@ export default function AdminMoviesPage() {
                           Poster URL
                         </label>
                         <input
-                          className="form-control"
+                          className="form-control form-control-sm"
                           value={form.poster_url}
                           onChange={(e) =>
                             handleInputChange("poster_url", e.target.value)
@@ -529,7 +628,7 @@ export default function AdminMoviesPage() {
                           <div className="col-md-6">
                             <label className="form-label">Tên phim</label>
                             <input
-                              className="form-control"
+                              className="form-control form-control-sm"
                               value={form.title}
                               onChange={(e) =>
                                 handleInputChange("title", e.target.value)
@@ -540,7 +639,7 @@ export default function AdminMoviesPage() {
                           <div className="col-md-6">
                             <label className="form-label">Đạo diễn</label>
                             <input
-                              className="form-control"
+                              className="form-control form-control-sm"
                               value={form.director || ""}
                               onChange={(e) =>
                                 handleInputChange("director", e.target.value)
@@ -552,7 +651,7 @@ export default function AdminMoviesPage() {
                           <div className="col-md-6">
                             <label className="form-label">Thể loại</label>
                             <input
-                              className="form-control"
+                              className="form-control form-control-sm"
                               value={form.genre}
                               onChange={(e) =>
                                 handleInputChange("genre", e.target.value)
@@ -560,12 +659,12 @@ export default function AdminMoviesPage() {
                             />
                           </div>
 
-                          <div className="col-md-4">
+                          <div className="col-md-6">
                             <label className="form-label">Thời lượng</label>
                             <input
                               type="number"
                               min={1}
-                              className="form-control"
+                              className="form-control form-control-sm"
                               value={form.duration_min}
                               onChange={(e) =>
                                 handleInputChange(
@@ -576,11 +675,11 @@ export default function AdminMoviesPage() {
                             />
                           </div>
 
-                          <div className="col-md-4">
+                          <div className="col-md-6">
                             <label className="form-label">Ngày chiếu</label>
                             <input
                               type="date"
-                              className="form-control"
+                              className="form-control form-control-sm"
                               value={form.release_date}
                               onChange={(e) =>
                                 handleInputChange(
@@ -591,10 +690,10 @@ export default function AdminMoviesPage() {
                             />
                           </div>
 
-                          <div className="col-md-4">
+                          <div className="col-md-6">
                             <label className="form-label">Trạng thái</label>
                             <select
-                              className="form-select"
+                              className="form-select form-select-sm"
                               value={form.status}
                               onChange={(e) =>
                                 handleInputChange(
@@ -613,8 +712,8 @@ export default function AdminMoviesPage() {
                           <div className="col-12">
                             <label className="form-label">Mô tả</label>
                             <textarea
-                              className="form-control"
-                              rows={6}
+                              className="form-control form-control-sm"
+                              rows={5}
                               value={form.description}
                               onChange={(e) =>
                                 handleInputChange("description", e.target.value)
@@ -623,7 +722,7 @@ export default function AdminMoviesPage() {
                           </div>
                         </div>
 
-                        <div className="d-flex gap-2 mt-4">
+                        <div className="d-flex flex-wrap gap-2 mt-4">
                           <button
                             type="submit"
                             className="btn btn-primary"
