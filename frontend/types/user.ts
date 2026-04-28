@@ -5,6 +5,7 @@ export interface User {
   phone?: string;
   address?: string;
   role: "user" | "admin";
+  avatar?: string | null;
 }
 
 export interface UserForm {
