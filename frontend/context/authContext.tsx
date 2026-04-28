@@ -3,9 +3,8 @@
 import {
   createContext,
   useCallback,
-  useEffect,
   useMemo,
-  useState,
+  useSyncExternalStore,
   type ReactNode,
 } from "react";
 import { authService } from "@/services/auth";
@@ -28,7 +27,6 @@ interface AuthContextType {
   login: (payload: LoginPayload) => Promise<AuthResponse>;
   register: (payload: RegisterPayload) => Promise<RegisterResponse>;
   logout: () => void;
-  loadToken: () => void;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(
@@ -40,6 +38,17 @@ interface AuthProviderProps {
 }
 
 const USER_STORAGE_KEY = "auth_user";
+const AUTH_CHANGE_EVENT = "auth-change";
+const EMPTY_AUTH_SNAPSHOT = "";
+
+function normalizeUser(user: User): User {
+  const role = user.role?.toLowerCase();
+
+  return {
+    ...user,
+    role: role === "admin" ? "admin" : "user",
+  };
+}
 
 function getStoredUser(): User | null {
   if (typeof window === "undefined") return null;
@@ -48,54 +57,137 @@ function getStoredUser(): User | null {
   if (!savedUser) return null;
 
   try {
-    return JSON.parse(savedUser) as User;
+    return normalizeUser(JSON.parse(savedUser) as User);
   } catch {
     localStorage.removeItem(USER_STORAGE_KEY);
     return null;
   }
 }
 
+function getAuthSnapshot(): string {
+  if (typeof window === "undefined") {
+    return EMPTY_AUTH_SNAPSHOT;
+  }
+
+  const token = getToken();
+  const rawUser = localStorage.getItem(USER_STORAGE_KEY);
+
+  if (!token || !rawUser) {
+    return EMPTY_AUTH_SNAPSHOT;
+  }
+
+  return JSON.stringify({
+    token,
+    user: rawUser,
+  });
+}
+
+function getServerAuthSnapshot(): string {
+  return EMPTY_AUTH_SNAPSHOT;
+}
+
+function subscribeAuthStore(callback: () => void) {
+  if (typeof window === "undefined") {
+    return () => {};
+  }
+
+  window.addEventListener(AUTH_CHANGE_EVENT, callback);
+  window.addEventListener("storage", callback);
+
+  return () => {
+    window.removeEventListener(AUTH_CHANGE_EVENT, callback);
+    window.removeEventListener("storage", callback);
+  };
+}
+
+function emitAuthChange() {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(AUTH_CHANGE_EVENT));
+  }
+}
+
 function clearStoredAuth() {
   if (typeof window !== "undefined") {
     localStorage.removeItem(USER_STORAGE_KEY);
+    localStorage.removeItem("user");
+    localStorage.removeItem("authUser");
+    localStorage.removeItem("currentUser");
   }
+
   removeToken();
 }
 
+function parseAuthSnapshot(snapshot: string): {
+  user: User | null;
+  token: string | null;
+} {
+  if (!snapshot || typeof window === "undefined") {
+    return {
+      user: null,
+      token: null,
+    };
+  }
+
+  try {
+    const parsed = JSON.parse(snapshot) as {
+      token?: string;
+      user?: string;
+    };
+
+    if (!parsed.token || !parsed.user) {
+      return {
+        user: null,
+        token: null,
+      };
+    }
+
+    const user = normalizeUser(JSON.parse(parsed.user) as User);
+
+    return {
+      user,
+      token: parsed.token,
+    };
+  } catch {
+    clearStoredAuth();
+
+    return {
+      user: null,
+      token: null,
+    };
+  }
+}
+
 export function AuthProvider({ children }: AuthProviderProps) {
-  const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const authSnapshot = useSyncExternalStore(
+    subscribeAuthStore,
+    getAuthSnapshot,
+    getServerAuthSnapshot,
+  );
 
-  const loadToken = useCallback(() => {
-    const savedToken = getToken();
-    const savedUser = getStoredUser();
+  const authState = useMemo(() => {
+    return parseAuthSnapshot(authSnapshot);
+  }, [authSnapshot]);
 
-    if (!savedToken || !savedUser) {
-      clearStoredAuth();
-      setUser(null);
-      setToken(null);
+  const setAuth = useCallback((nextUser: User, nextToken: string) => {
+    const normalizedUser = normalizeUser(nextUser);
+
+    saveToken(nextToken);
+    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(normalizedUser));
+
+    emitAuthChange();
+  }, []);
+
+  const setUser = useCallback((nextUser: User | null) => {
+    if (!nextUser) {
+      localStorage.removeItem(USER_STORAGE_KEY);
+      emitAuthChange();
       return;
     }
 
-    setUser(savedUser);
-    setToken(savedToken);
-  }, []);
+    const normalizedUser = normalizeUser(nextUser);
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      loadToken();
-      setLoading(false);
-    }, 0);
-
-    return () => clearTimeout(timer);
-  }, [loadToken]);
-
-  const setAuth = useCallback((nextUser: User, nextToken: string) => {
-    saveToken(nextToken);
-    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(nextUser));
-    setUser(nextUser);
-    setToken(nextToken);
+    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(normalizedUser));
+    emitAuthChange();
   }, []);
 
   const login = useCallback(
@@ -109,13 +201,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
         throw new Error("Dữ liệu đăng nhập không hợp lệ");
       }
 
+      const normalizedUser = normalizeUser(nextUser);
+
       saveToken(nextToken);
-      localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(nextUser));
+      localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(normalizedUser));
 
-      setToken(nextToken);
-      setUser(nextUser);
+      emitAuthChange();
 
-      return data;
+      return {
+        ...data,
+        user: normalizedUser,
+      };
     },
     [],
   );
@@ -129,24 +225,22 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const logout = useCallback(() => {
     clearStoredAuth();
-    setUser(null);
-    setToken(null);
+    emitAuthChange();
   }, []);
 
   const value = useMemo<AuthContextType>(
     () => ({
-      user,
-      token,
-      loading,
-      isAuthenticated: !!token && !!user,
+      user: authState.user,
+      token: authState.token,
+      loading: false,
+      isAuthenticated: !!authState.token && !!authState.user,
       setAuth,
       setUser,
       login,
       register,
       logout,
-      loadToken,
     }),
-    [user, token, loading, setAuth, login, register, logout, loadToken],
+    [authState, setAuth, setUser, login, register, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
