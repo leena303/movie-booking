@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { CheckCircle, Eye, XCircle } from "lucide-react";
 import { AdminBooking, UpdateBookingStatusPayload } from "@/types/admin";
 import { adminService } from "@/services/admin";
 
@@ -10,8 +11,10 @@ export default function AdminBookingsPage() {
   const [bookings, setBookings] = useState<AdminBooking[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
   const [updatingId, setUpdatingId] = useState<number | null>(null);
   const [activeFilter, setActiveFilter] = useState<FilterStatus>("all");
+  const [searchKeyword, setSearchKeyword] = useState("");
   const [selectedBooking, setSelectedBooking] = useState<AdminBooking | null>(
     null,
   );
@@ -106,44 +109,43 @@ export default function AdminBookingsPage() {
   function statusClass(status: string) {
     switch (status) {
       case "confirmed":
-        return "bg-success";
+        return "bg-success-subtle text-success border border-success-subtle";
       case "pending":
-        return "bg-warning text-dark";
+        return "bg-warning-subtle text-warning border border-warning-subtle";
       case "cancelled":
-        return "bg-danger";
+        return "bg-danger-subtle text-danger border border-danger-subtle";
       default:
-        return "bg-secondary";
+        return "bg-secondary-subtle text-secondary border border-secondary-subtle";
     }
   }
 
-  function paymentMethodText(method?: string) {
+  function paymentText(method?: string) {
     switch ((method || "").toLowerCase()) {
+      case "cash":
+        return "Tiền mặt";
       case "cod":
-        return "Thanh toán tại rạp";
+        return "Tại rạp";
       case "momo":
         return "Momo";
       case "vnpay":
         return "VNPay";
       default:
-        return "Chưa có dữ liệu";
+        return method || "Chưa có dữ liệu";
     }
   }
 
-  function paymentStatusText(status?: string) {
-    switch ((status || "").toLowerCase()) {
-      case "paid":
-        return "Đã thanh toán";
-      case "unpaid":
-        return "Chưa thanh toán";
-      case "pending":
-        return "Đang chờ thanh toán";
-      default:
-        return "Chưa có dữ liệu";
-    }
-  }
+  function paymentClass(method?: string) {
+    const value = (method || "").toLowerCase();
 
-  function seatText(seats?: string) {
-    return seats && seats.trim() ? seats : "Chưa có dữ liệu";
+    if (value === "momo" || value === "vnpay") {
+      return "bg-success-subtle text-success border border-success-subtle";
+    }
+
+    if (value === "cash" || value === "cod") {
+      return "bg-warning-subtle text-warning border border-warning-subtle";
+    }
+
+    return "bg-secondary-subtle text-secondary border border-secondary-subtle";
   }
 
   function formatDateTime(value?: string) {
@@ -155,21 +157,54 @@ export default function AdminBookingsPage() {
     return date.toLocaleString("vi-VN");
   }
 
+  function formatDate(value?: string) {
+    if (!value) return "N/A";
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "N/A";
+
+    return date.toLocaleDateString("vi-VN");
+  }
+
+  function bookingCode(id: number) {
+    return `BK-${String(id).padStart(4, "0")}`;
+  }
+
   const filteredBookings = useMemo(() => {
-    if (activeFilter === "all") return bookings;
-    return bookings.filter((b) => b.status === activeFilter);
-  }, [bookings, activeFilter]);
+    return bookings.filter((booking) => {
+      const statusMatch =
+        activeFilter === "all" || booking.status === activeFilter;
+
+      const keyword = searchKeyword.trim().toLowerCase();
+
+      const keywordMatch =
+        !keyword ||
+        bookingCode(booking.booking_id).toLowerCase().includes(keyword) ||
+        booking.movie_title?.toLowerCase().includes(keyword) ||
+        booking.user_name?.toLowerCase().includes(keyword) ||
+        booking.email?.toLowerCase().includes(keyword);
+
+      return statusMatch && keywordMatch;
+    });
+  }, [bookings, activeFilter, searchKeyword]);
 
   return (
     <>
-      <div>
-        <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
-          <h2 className="mb-0">Quản lý vé</h2>
+      <div className="admin-page">
+        <div className="d-flex flex-column flex-xl-row justify-content-between align-items-xl-center gap-3 mb-4">
+          <div>
+            <h2 className="mb-1 fw-bold">Quản lý đặt vé</h2>
+            <p className="text-muted mb-0">
+              Xem và quản lý các đơn đặt vé của khách hàng
+            </p>
+          </div>
 
           <div className="d-flex flex-wrap gap-2">
             <button
               type="button"
-              className={`btn btn-sm ${activeFilter === "all" ? "btn-dark" : "btn-outline-dark"}`}
+              className={`btn btn-sm px-3 ${
+                activeFilter === "all" ? "btn-dark" : "btn-outline-dark"
+              }`}
               onClick={() => setActiveFilter("all")}
             >
               Tất cả
@@ -177,7 +212,11 @@ export default function AdminBookingsPage() {
 
             <button
               type="button"
-              className={`btn btn-sm ${activeFilter === "pending" ? "btn-warning" : "btn-outline-warning"}`}
+              className={`btn btn-sm px-3 ${
+                activeFilter === "pending"
+                  ? "btn-warning"
+                  : "btn-outline-warning"
+              }`}
               onClick={() => setActiveFilter("pending")}
             >
               Chờ xác nhận
@@ -185,7 +224,11 @@ export default function AdminBookingsPage() {
 
             <button
               type="button"
-              className={`btn btn-sm ${activeFilter === "confirmed" ? "btn-success" : "btn-outline-success"}`}
+              className={`btn btn-sm px-3 ${
+                activeFilter === "confirmed"
+                  ? "btn-success"
+                  : "btn-outline-success"
+              }`}
               onClick={() => setActiveFilter("confirmed")}
             >
               Đã xác nhận
@@ -193,11 +236,45 @@ export default function AdminBookingsPage() {
 
             <button
               type="button"
-              className={`btn btn-sm ${activeFilter === "cancelled" ? "btn-danger" : "btn-outline-danger"}`}
+              className={`btn btn-sm px-3 ${
+                activeFilter === "cancelled"
+                  ? "btn-danger"
+                  : "btn-outline-danger"
+              }`}
               onClick={() => setActiveFilter("cancelled")}
             >
               Đã hủy
             </button>
+          </div>
+        </div>
+
+        <div className="card border-0 shadow-sm admin-table-card mb-4">
+          <div className="card-body">
+            <div className="row g-3">
+              <div className="col-md-6">
+                <label className="form-label">Tìm kiếm booking</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="Tìm theo mã booking, tên phim, khách hàng hoặc email..."
+                  value={searchKeyword}
+                  onChange={(e) => setSearchKeyword(e.target.value)}
+                />
+              </div>
+
+              <div className="col-md-3 d-flex align-items-end">
+                {/* <button
+                  type="button"
+                  className="btn btn-outline-secondary w-100"
+                  onClick={() => {
+                    setSearchKeyword("");
+                    setActiveFilter("all");
+                  }}
+                >
+                  Xóa bộ lọc
+                </button> */}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -208,93 +285,130 @@ export default function AdminBookingsPage() {
         {error && <div className="alert alert-danger">{error}</div>}
 
         {!loading && !error && (
-          <div className="card border-0 shadow-sm">
+          <div className="card border-0 shadow-sm admin-table-card">
             <div className="card-body p-0">
               <div className="table-responsive">
-                <table className="table table-hover align-middle mb-0">
+                <table className="table table-hover align-middle mb-0 admin-table">
                   <thead className="table-light">
                     <tr>
-                      <th>#</th>
+                      <th style={{ width: 130 }}>Mã booking</th>
+                      <th style={{ width: 180 }}>Khách hàng</th>
                       <th>Phim</th>
-                      <th>Người dùng</th>
-                      <th>Ngày đặt</th>
-                      <th>Ghế</th>
-                      <th>Thanh toán</th>
-                      <th>Giá</th>
-                      <th>Trạng thái</th>
-                      <th style={{ minWidth: 220 }}>Thao tác nhanh</th>
+                      <th style={{ width: 130 }}>Tổng tiền</th>
+                      <th style={{ width: 150 }}>Trạng thái vé</th>
+                      <th style={{ width: 150 }}>Thanh toán</th>
+                      <th style={{ width: 130 }}>Ngày đặt</th>
+                      <th style={{ width: 130 }} className="text-center">
+                        Thao tác
+                      </th>
                     </tr>
                   </thead>
 
                   <tbody>
                     {filteredBookings.length > 0 ? (
-                      filteredBookings.map((b, index) => (
+                      filteredBookings.map((booking) => (
                         <tr
-                          key={`${b.booking_id ?? "missing"}-${b.created_at ?? "no-date"}-${index}`}
+                          key={booking.booking_id}
                           style={{ cursor: "pointer" }}
-                          onClick={() => setSelectedBooking(b)}
+                          onClick={() => setSelectedBooking(booking)}
                         >
-                          <td>{index + 1}</td>
                           <td className="fw-semibold">
-                            {b.movie_title || "N/A"}
+                            {bookingCode(booking.booking_id)}
                           </td>
-                          <td>{b.user_name || b.email || "N/A"}</td>
-                          <td>{formatDateTime(b.created_at)}</td>
-                          <td>{seatText(b.seat_names)}</td>
-                          <td>{paymentMethodText(b.payment_method)}</td>
+
                           <td>
-                            {Number(b.total_price || 0).toLocaleString("vi-VN")}
+                            <div className="fw-semibold">
+                              {booking.user_name || "N/A"}
+                            </div>
+                            <div className="text-muted small">
+                              {booking.email || "N/A"}
+                            </div>
+                          </td>
+
+                          <td className="admin-table-title fw-semibold">
+                            {booking.movie_title || "N/A"}
+                          </td>
+
+                          <td className="fw-semibold text-success">
+                            {Number(booking.total_price || 0).toLocaleString(
+                              "vi-VN",
+                            )}
                             đ
                           </td>
+
                           <td>
-                            <span className={`badge ${statusClass(b.status)}`}>
-                              {statusText(b.status)}
+                            <span
+                              className={`badge rounded-pill px-3 py-2 ${statusClass(
+                                booking.status,
+                              )}`}
+                            >
+                              {statusText(booking.status)}
                             </span>
                           </td>
 
-                          <td onClick={(e) => e.stopPropagation()}>
-                            <div className="d-flex gap-2 flex-wrap">
+                          <td>
+                            <span
+                              className={`badge rounded-pill px-3 py-2 ${paymentClass(
+                                booking.payment_method,
+                              )}`}
+                            >
+                              {paymentText(booking.payment_method)}
+                            </span>
+                          </td>
+
+                          <td>{formatDate(booking.created_at)}</td>
+
+                          <td
+                            className="text-center"
+                            style={{ width: 130 }}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <div className="admin-action-group">
                               <button
                                 type="button"
-                                className="btn btn-sm btn-success"
+                                className="btn btn-sm btn-outline-success btn-icon"
+                                title="Xác nhận"
+                                aria-label="Xác nhận"
                                 disabled={
-                                  updatingId === b.booking_id ||
-                                  b.status === "confirmed"
+                                  updatingId === booking.booking_id ||
+                                  booking.status === "confirmed"
                                 }
                                 onClick={() =>
-                                  handleChangeStatus(b.booking_id, "confirmed")
+                                  handleChangeStatus(
+                                    booking.booking_id,
+                                    "confirmed",
+                                  )
                                 }
                               >
-                                ✔ Xác nhận
+                                <CheckCircle size={16} />
                               </button>
 
                               <button
                                 type="button"
-                                className="btn btn-sm btn-danger"
+                                className="btn btn-sm btn-outline-danger btn-icon"
+                                title="Hủy"
+                                aria-label="Hủy"
                                 disabled={
-                                  updatingId === b.booking_id ||
-                                  b.status === "cancelled"
+                                  updatingId === booking.booking_id ||
+                                  booking.status === "cancelled"
                                 }
                                 onClick={() =>
-                                  handleChangeStatus(b.booking_id, "cancelled")
+                                  handleChangeStatus(
+                                    booking.booking_id,
+                                    "cancelled",
+                                  )
                                 }
                               >
-                                ❌ Hủy
+                                <XCircle size={16} />
                               </button>
-
-                              {updatingId === b.booking_id && (
-                                <span className="text-muted small align-self-center">
-                                  Đang cập nhật...
-                                </span>
-                              )}
                             </div>
                           </td>
                         </tr>
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={9} className="text-center text-muted py-4">
-                          Chưa có vé nào
+                        <td colSpan={8} className="text-center text-muted py-4">
+                          Chưa có booking nào
                         </td>
                       </tr>
                     )}
@@ -312,29 +426,44 @@ export default function AdminBookingsPage() {
             className="position-fixed top-0 start-0 w-100 h-100"
             style={{
               backgroundColor: "rgba(0, 0, 0, 0.45)",
-              backdropFilter: "blur(2px)",
-              WebkitBackdropFilter: "blur(2px)",
+              backdropFilter: "blur(3px)",
+              WebkitBackdropFilter: "blur(3px)",
               zIndex: 1040,
             }}
             onClick={() => setSelectedBooking(null)}
           />
 
           <div
-            className="position-fixed top-50 start-50 translate-middle w-100 px-3"
-            style={{ maxWidth: 620, zIndex: 1050 }}
+            className="position-fixed top-50 start-50 translate-middle w-100 px-3 modal-custom"
+            style={{
+              maxWidth: 820,
+              maxHeight: "88vh",
+              zIndex: 1050,
+            }}
           >
             <div
               className="card border-0 shadow-lg"
               style={{
-                borderRadius: 14,
-                maxHeight: "85vh",
-                overflowY: "auto",
+                borderRadius: 16,
+                overflow: "hidden",
+                maxHeight: "88vh",
               }}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="card-body p-3 p-md-4">
-                <div className="d-flex justify-content-between align-items-center mb-3">
-                  <h5 className="mb-0 fw-bold">Chi tiết booking</h5>
+              <div
+                className="card-body p-4"
+                style={{
+                  maxHeight: "88vh",
+                  overflowY: "auto",
+                }}
+              >
+                <div className="d-flex justify-content-between align-items-start gap-3 mb-3">
+                  <div>
+                    <h4 className="mb-1">Chi tiết booking</h4>
+                    <p className="text-muted mb-0 small">
+                      {bookingCode(selectedBooking.booking_id)}
+                    </p>
+                  </div>
 
                   <button
                     type="button"
@@ -345,9 +474,9 @@ export default function AdminBookingsPage() {
                   </button>
                 </div>
 
-                <div className="row g-2">
+                <div className="row g-3">
                   <div className="col-md-6">
-                    <label className="form-label small mb-1">Phim</label>
+                    <label className="form-label">Phim</label>
                     <input
                       className="form-control form-control-sm"
                       value={selectedBooking.movie_title || "N/A"}
@@ -357,7 +486,7 @@ export default function AdminBookingsPage() {
                   </div>
 
                   <div className="col-md-6">
-                    <label className="form-label small mb-1">Người dùng</label>
+                    <label className="form-label">Khách hàng</label>
                     <input
                       className="form-control form-control-sm"
                       value={
@@ -371,7 +500,7 @@ export default function AdminBookingsPage() {
                   </div>
 
                   <div className="col-md-6">
-                    <label className="form-label small mb-1">Email</label>
+                    <label className="form-label">Email</label>
                     <input
                       className="form-control form-control-sm"
                       value={selectedBooking.email || "N/A"}
@@ -381,9 +510,7 @@ export default function AdminBookingsPage() {
                   </div>
 
                   <div className="col-md-6">
-                    <label className="form-label small mb-1">
-                      Số điện thoại
-                    </label>
+                    <label className="form-label">Số điện thoại</label>
                     <input
                       className="form-control form-control-sm"
                       value={selectedBooking.phone || "N/A"}
@@ -393,7 +520,7 @@ export default function AdminBookingsPage() {
                   </div>
 
                   <div className="col-md-6">
-                    <label className="form-label small mb-1">Ngày đặt vé</label>
+                    <label className="form-label">Ngày đặt vé</label>
                     <input
                       className="form-control form-control-sm"
                       value={formatDateTime(selectedBooking.created_at)}
@@ -403,7 +530,7 @@ export default function AdminBookingsPage() {
                   </div>
 
                   <div className="col-md-6">
-                    <label className="form-label small mb-1">Suất chiếu</label>
+                    <label className="form-label">Suất chiếu</label>
                     <input
                       className="form-control form-control-sm"
                       value={formatDateTime(selectedBooking.start_time)}
@@ -413,7 +540,7 @@ export default function AdminBookingsPage() {
                   </div>
 
                   <div className="col-md-6">
-                    <label className="form-label small mb-1">Phòng</label>
+                    <label className="form-label">Phòng</label>
                     <input
                       className="form-control form-control-sm"
                       value={selectedBooking.room_name || "N/A"}
@@ -423,53 +550,39 @@ export default function AdminBookingsPage() {
                   </div>
 
                   <div className="col-md-6">
-                    <label className="form-label small mb-1">Ghế đã đặt</label>
+                    <label className="form-label">Ghế đã đặt</label>
                     <input
                       className="form-control form-control-sm"
-                      value={seatText(selectedBooking.seat_names)}
+                      value={selectedBooking.seat_names || "Chưa có dữ liệu"}
                       readOnly
                       disabled
                     />
                   </div>
 
                   <div className="col-md-6">
-                    <label className="form-label small mb-1">
-                      Phương thức thanh toán
-                    </label>
+                    <label className="form-label">Phương thức thanh toán</label>
                     <input
                       className="form-control form-control-sm"
-                      value={paymentMethodText(selectedBooking.payment_method)}
+                      value={paymentText(selectedBooking.payment_method)}
                       readOnly
                       disabled
                     />
                   </div>
 
                   <div className="col-md-6">
-                    <label className="form-label small mb-1">
-                      Trạng thái thanh toán
-                    </label>
+                    <label className="form-label">Tổng tiền</label>
                     <input
                       className="form-control form-control-sm"
-                      value={paymentStatusText(selectedBooking.payment_status)}
+                      value={`${Number(
+                        selectedBooking.total_price || 0,
+                      ).toLocaleString("vi-VN")}đ`}
                       readOnly
                       disabled
                     />
                   </div>
 
                   <div className="col-md-6">
-                    <label className="form-label small mb-1">Tổng tiền</label>
-                    <input
-                      className="form-control form-control-sm"
-                      value={`${Number(selectedBooking.total_price || 0).toLocaleString("vi-VN")}đ`}
-                      readOnly
-                      disabled
-                    />
-                  </div>
-
-                  <div className="col-md-6">
-                    <label className="form-label small mb-1">
-                      Trạng thái booking
-                    </label>
+                    <label className="form-label">Trạng thái vé</label>
                     <input
                       className="form-control form-control-sm"
                       value={statusText(selectedBooking.status)}
@@ -477,12 +590,24 @@ export default function AdminBookingsPage() {
                       disabled
                     />
                   </div>
+
+                  <div className="col-md-6">
+                    <label className="form-label">Trạng thái thanh toán</label>
+                    <input
+                      className="form-control form-control-sm"
+                      value={
+                        selectedBooking.payment_status || "Chưa có dữ liệu"
+                      }
+                      readOnly
+                      disabled
+                    />
+                  </div>
                 </div>
 
-                <div className="d-flex flex-wrap gap-2 mt-4">
+                <div className="d-flex gap-2 mt-4">
                   <button
                     type="button"
-                    className="btn btn-sm btn-success"
+                    className="btn btn-success d-inline-flex align-items-center gap-2"
                     disabled={
                       updatingId === selectedBooking.booking_id ||
                       selectedBooking.status === "confirmed"
@@ -494,12 +619,13 @@ export default function AdminBookingsPage() {
                       )
                     }
                   >
-                    ✔ Xác nhận
+                    <CheckCircle size={16} />
+                    Xác nhận
                   </button>
 
                   <button
                     type="button"
-                    className="btn btn-sm btn-danger"
+                    className="btn btn-danger d-inline-flex align-items-center gap-2"
                     disabled={
                       updatingId === selectedBooking.booking_id ||
                       selectedBooking.status === "cancelled"
@@ -511,7 +637,8 @@ export default function AdminBookingsPage() {
                       )
                     }
                   >
-                    ❌ Hủy
+                    <XCircle size={16} />
+                    Hủy
                   </button>
                 </div>
               </div>
