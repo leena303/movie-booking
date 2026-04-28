@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState, Suspense } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { Pencil, PlusCircle, Trash2 } from "lucide-react";
 import { AdminMovie, AdminRoom, AdminShowtime } from "@/types/admin";
 import { adminService } from "@/services/admin";
 
@@ -93,10 +94,11 @@ function AdminShowtimesContent() {
     const movieId = Number(searchParams.get("movieId"));
     if (!movieId || movies.length === 0) return;
 
-    const movie = movies.find((m) => m.id === movieId);
+    const movie = movies.find((item) => item.id === movieId);
     if (!movie) return;
 
     setSelectedMovie(movie);
+    setSelectedShowtime(null);
     setForm({
       movie_id: movie.id,
       room_id: "",
@@ -111,46 +113,134 @@ function AdminShowtimesContent() {
 
   const normalizedRooms = useMemo(() => {
     const seen = new Set<string>();
+
     const deduped = rooms.filter((room) => {
       const name = (room.name || "").trim().toLowerCase();
+
       if (!name) return false;
       if (seen.has(name)) return false;
+
       seen.add(name);
       return true;
     });
 
     const preferred = deduped.filter((room) => {
       const name = (room.name || "").trim().toLowerCase();
+
       return (
         name === "phòng 1" ||
         name === "phong 1" ||
+        name === "room 1" ||
         name === "phòng 2" ||
-        name === "phong 2"
+        name === "phong 2" ||
+        name === "room 2"
       );
     });
 
     return preferred.length > 0 ? preferred : deduped.slice(0, 2);
   }, [rooms]);
 
+  const movieShowtimeMap = useMemo(() => {
+    const map = new Map<number, AdminShowtime[]>();
+
+    showtimes.forEach((showtime) => {
+      if (!map.has(showtime.movie_id)) {
+        map.set(showtime.movie_id, []);
+      }
+
+      map.get(showtime.movie_id)?.push(showtime);
+    });
+
+    return map;
+  }, [showtimes]);
+
+  const filteredMovies = useMemo<MovieWithShowtimes[]>(() => {
+    return movies
+      .filter((movie) => {
+        const keywordMatch =
+          !searchKeyword.trim() ||
+          movie.title
+            .toLowerCase()
+            .includes(searchKeyword.trim().toLowerCase());
+
+        const movieShowtimes = movieShowtimeMap.get(movie.id) || [];
+
+        const matchedShowtimes = movieShowtimes.filter((showtime) => {
+          const dateMatch =
+            !dateFilter ||
+            new Date(showtime.start_time).toISOString().slice(0, 10) ===
+              dateFilter;
+
+          const status = getShowtimeStatus(showtime, movie.duration_min);
+          const statusMatch =
+            statusFilter === "all" || status.value === statusFilter;
+
+          return dateMatch && statusMatch;
+        });
+
+        if (statusFilter === "all" && !dateFilter) {
+          return keywordMatch;
+        }
+
+        return keywordMatch && matchedShowtimes.length > 0;
+      })
+      .map((movie) => ({
+        movie,
+        showtimes: movieShowtimeMap.get(movie.id) || [],
+      }))
+      .sort((a, b) => a.movie.title.localeCompare(b.movie.title, "vi"));
+  }, [movies, movieShowtimeMap, searchKeyword, dateFilter, statusFilter]);
+
+  const selectedMovieShowtimes = useMemo(() => {
+    if (!selectedMovie) return [];
+
+    return (movieShowtimeMap.get(selectedMovie.id) || [])
+      .filter((showtime) => {
+        const dateMatch =
+          !dateFilter ||
+          new Date(showtime.start_time).toISOString().slice(0, 10) ===
+            dateFilter;
+
+        const status = getShowtimeStatus(showtime, selectedMovie.duration_min);
+        const statusMatch =
+          statusFilter === "all" || status.value === statusFilter;
+
+        return dateMatch && statusMatch;
+      })
+      .sort(
+        (a, b) =>
+          new Date(a.start_time).getTime() - new Date(b.start_time).getTime(),
+      );
+  }, [selectedMovie, movieShowtimeMap, dateFilter, statusFilter]);
+
   function formatDateTime(value?: string) {
     if (!value) return "N/A";
+
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return "N/A";
+
     return date.toLocaleString("vi-VN");
   }
 
   function toDatetimeLocal(value?: string) {
     if (!value) return "";
+
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return "";
+
     const offset = date.getTimezoneOffset();
     const local = new Date(date.getTime() - offset * 60 * 1000);
+
     return local.toISOString().slice(0, 16);
   }
 
   function getEndTime(showtime: AdminShowtime, durationMin?: number) {
     const start = new Date(showtime.start_time);
-    if (Number.isNaN(start.getTime()) || !durationMin) return null;
+
+    if (Number.isNaN(start.getTime()) || !durationMin) {
+      return null;
+    }
+
     return new Date(start.getTime() + durationMin * 60 * 1000);
   }
 
@@ -162,12 +252,15 @@ function AdminShowtimesContent() {
     if (Number.isNaN(start.getTime())) {
       return { label: "Không xác định", value: "unknown" as const };
     }
+
     if (!end || now < start) {
       return { label: "Sắp chiếu", value: "upcoming" as const };
     }
+
     if (now >= start && now <= end) {
       return { label: "Đang chiếu", value: "showing" as const };
     }
+
     return { label: "Đã kết thúc", value: "ended" as const };
   }
 
@@ -234,6 +327,7 @@ function AdminShowtimesContent() {
         room_id: Number(form.room_id),
         start_time: new Date(form.start_time).toISOString(),
         price: 0,
+        subtitle: "Phụ đề",
       };
 
       if (modalMode === "edit" && selectedShowtime) {
@@ -274,81 +368,16 @@ function AdminShowtimesContent() {
     setStatusFilter("all");
   }
 
-  const movieShowtimeMap = useMemo(() => {
-    const map = new Map<number, AdminShowtime[]>();
-    showtimes.forEach((showtime) => {
-      if (!map.has(showtime.movie_id)) {
-        map.set(showtime.movie_id, []);
-      }
-      map.get(showtime.movie_id)?.push(showtime);
-    });
-    return map;
-  }, [showtimes]);
-
-  const filteredMovies = useMemo<MovieWithShowtimes[]>(() => {
-    return movies
-      .filter((movie) => {
-        const keywordMatch =
-          !searchKeyword.trim() ||
-          movie.title
-            .toLowerCase()
-            .includes(searchKeyword.trim().toLowerCase());
-
-        const movieShowtimes = movieShowtimeMap.get(movie.id) || [];
-
-        const matchedShowtimes = movieShowtimes.filter((showtime) => {
-          const dateMatch =
-            !dateFilter ||
-            new Date(showtime.start_time).toISOString().slice(0, 10) ===
-              dateFilter;
-
-          const status = getShowtimeStatus(showtime, movie.duration_min);
-          const statusMatch =
-            statusFilter === "all" || status.value === statusFilter;
-
-          return dateMatch && statusMatch;
-        });
-
-        if (statusFilter === "all" && !dateFilter) {
-          return keywordMatch;
-        }
-
-        return keywordMatch && matchedShowtimes.length > 0;
-      })
-      .map((movie) => ({
-        movie,
-        showtimes: movieShowtimeMap.get(movie.id) || [],
-      }))
-      .sort((a, b) => a.movie.title.localeCompare(b.movie.title, "vi"));
-  }, [movies, movieShowtimeMap, searchKeyword, dateFilter, statusFilter]);
-
-  const selectedMovieShowtimes = useMemo(() => {
-    if (!selectedMovie) return [];
-    return (movieShowtimeMap.get(selectedMovie.id) || [])
-      .filter((showtime) => {
-        const dateMatch =
-          !dateFilter ||
-          new Date(showtime.start_time).toISOString().slice(0, 10) ===
-            dateFilter;
-
-        const status = getShowtimeStatus(showtime, selectedMovie.duration_min);
-        const statusMatch =
-          statusFilter === "all" || status.value === statusFilter;
-
-        return dateMatch && statusMatch;
-      })
-      .sort(
-        (a, b) =>
-          new Date(a.start_time).getTime() - new Date(b.start_time).getTime(),
-      );
-  }, [selectedMovie, movieShowtimeMap, dateFilter, statusFilter]);
-
   return (
     <>
-      <div>
-        <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
-          <h2 className="mb-0">Quản lý lịch chiếu</h2>
-
+      <div className="admin-page">
+        <div className="d-flex flex-column flex-xl-row justify-content-between align-items-xl-center gap-3 mb-4">
+          <div>
+            <h2 className="mb-1 fw-bold">Quản lý lịch chiếu</h2>
+            <p className="text-muted mb-0">
+              Theo dõi và xử lý các lịch chiếu phim trong hệ thống
+            </p>
+          </div>
           <button
             type="button"
             className="btn btn-primary"
@@ -358,7 +387,7 @@ function AdminShowtimesContent() {
           </button>
         </div>
 
-        <div className="card border-0 shadow-sm mb-4">
+        <div className="card border-0 shadow-sm admin-table-card mb-4">
           <div className="card-body">
             <div className="row g-3">
               <div className="col-md-5">
@@ -414,28 +443,37 @@ function AdminShowtimesContent() {
         {loading && (
           <div className="alert alert-secondary">Đang tải dữ liệu...</div>
         )}
+
         {error && !modalMode && (
           <div className="alert alert-danger">{error}</div>
         )}
 
         {!loading && !error && (
-          <div className="card border-0 shadow-sm">
+          <div className="card border-0 shadow-sm admin-table-card">
             <div className="card-body p-0">
               <div className="table-responsive">
-                <table className="table table-hover align-middle mb-0">
+                <table className="table table-hover align-middle mb-0 admin-table">
                   <thead className="table-light">
                     <tr>
                       <th>Tên phim</th>
-                      <th>Trạng thái phim</th>
-                      <th>Số suất chiếu</th>
-                      <th className="text-center">Thao tác</th>
+                      <th style={{ width: 170 }}>Trạng thái phim</th>
+                      <th style={{ width: 150 }}>Số suất chiếu</th>
                     </tr>
                   </thead>
+
                   <tbody>
                     {filteredMovies.length > 0 ? (
                       filteredMovies.map(({ movie, showtimes }) => (
-                        <tr key={movie.id}>
-                          <td className="fw-semibold">{movie.title}</td>
+                        <tr
+                          key={movie.id}
+                          style={{ cursor: "pointer" }}
+                          onClick={() => openViewModal(movie)}
+                          title="Bấm để xem lịch chiếu"
+                        >
+                          <td className="admin-table-title fw-semibold">
+                            {movie.title}
+                          </td>
+
                           <td>
                             <span
                               className={`badge ${
@@ -449,31 +487,17 @@ function AdminShowtimesContent() {
                                 : "Sắp chiếu"}
                             </span>
                           </td>
-                          <td>{showtimes.length}</td>
-                          <td className="text-center">
-                            <div className="d-flex justify-content-center gap-2 flex-wrap">
-                              <button
-                                type="button"
-                                className="btn btn-sm btn-outline-info"
-                                onClick={() => openViewModal(movie)}
-                              >
-                                Xem lịch chiếu
-                              </button>
 
-                              <button
-                                type="button"
-                                className="btn btn-sm btn-outline-primary"
-                                onClick={() => openCreateModal(movie)}
-                              >
-                                Thêm suất
-                              </button>
-                            </div>
+                          <td>
+                            <span className="fw-semibold">
+                              {showtimes.length}
+                            </span>
                           </td>
                         </tr>
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={4} className="text-center text-muted py-4">
+                        <td colSpan={3} className="text-center text-muted py-4">
                           Chưa có phim nào
                         </td>
                       </tr>
@@ -562,24 +586,28 @@ function AdminShowtimesContent() {
 
                       <button
                         type="button"
-                        className="btn btn-sm btn-primary"
+                        className="btn btn-sm btn-primary d-inline-flex align-items-center gap-2"
                         onClick={() => openCreateModal(selectedMovie)}
                       >
-                        + Thêm suất chiếu
+                        <PlusCircle size={16} />
+                        Thêm suất chiếu
                       </button>
                     </div>
 
                     <div className="table-responsive">
-                      <table className="table table-bordered align-middle">
+                      <table className="table table-bordered align-middle admin-table">
                         <thead className="table-light">
                           <tr>
                             <th>Phòng</th>
                             <th>Bắt đầu</th>
                             <th>Kết thúc</th>
                             <th>Trạng thái suất</th>
-                            <th>Thao tác</th>
+                            <th style={{ width: 130 }} className="text-center">
+                              Thao tác
+                            </th>
                           </tr>
                         </thead>
+
                         <tbody>
                           {selectedMovieShowtimes.length > 0 ? (
                             selectedMovieShowtimes.map((showtime) => (
@@ -589,7 +617,9 @@ function AdminShowtimesContent() {
                                     roomMap.get(showtime.room_id)?.name ||
                                     "N/A"}
                                 </td>
+
                                 <td>{formatDateTime(showtime.start_time)}</td>
+
                                 <td>
                                   {getEndTime(
                                     showtime,
@@ -603,6 +633,7 @@ function AdminShowtimesContent() {
                                       )
                                     : "N/A"}
                                 </td>
+
                                 <td>
                                   {
                                     getShowtimeStatus(
@@ -611,24 +642,32 @@ function AdminShowtimesContent() {
                                     ).label
                                   }
                                 </td>
-                                <td>
-                                  <div className="d-flex gap-2 flex-wrap">
+
+                                <td
+                                  className="text-center"
+                                  style={{ width: 130 }}
+                                >
+                                  <div className="admin-action-group">
                                     <button
                                       type="button"
-                                      className="btn btn-sm btn-outline-primary"
+                                      className="btn btn-sm btn-outline-primary btn-icon"
+                                      title="Sửa"
+                                      aria-label="Sửa"
                                       onClick={() =>
                                         openEditModal(showtime, selectedMovie)
                                       }
                                     >
-                                      Sửa
+                                      <Pencil size={16} />
                                     </button>
 
                                     <button
                                       type="button"
-                                      className="btn btn-sm btn-outline-danger"
+                                      className="btn btn-sm btn-outline-danger btn-icon"
+                                      title="Xóa"
+                                      aria-label="Xóa"
                                       onClick={() => handleDelete(showtime.id)}
                                     >
-                                      Xóa
+                                      <Trash2 size={16} />
                                     </button>
                                   </div>
                                 </td>
@@ -637,7 +676,7 @@ function AdminShowtimesContent() {
                           ) : (
                             <tr>
                               <td
-                                colSpan={6}
+                                colSpan={5}
                                 className="text-center text-muted py-4"
                               >
                                 Phim này chưa có suất chiếu nào
