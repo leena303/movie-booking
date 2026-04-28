@@ -91,7 +91,15 @@ axiosInstance.interceptors.response.use(
         break;
 
       case 403:
-        console.error("❌ 403 - Forbidden:", message);
+        if (
+          typeof window !== "undefined" &&
+          isAdminRequest &&
+          window.location.pathname.startsWith("/admin")
+        ) {
+          window.location.href = "/";
+        } else if (!isLoginRequest) {
+          console.error("❌ 403 - Forbidden:", message);
+        }
         break;
 
       case 404:
