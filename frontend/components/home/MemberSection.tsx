@@ -39,9 +39,7 @@ export default function MemberSection() {
             Thành viên
           </p>
 
-          <h2 className="fw-bold">
-            Quyền lợi dành cho thành viên MovieBooking
-          </h2>
+          <h2 className="fw-bold">Quyền lợi dành cho thành viên CineGo</h2>
 
           <p className="text-muted col-md-8 mx-auto mt-3">
             Tạo tài khoản để đặt vé nhanh hơn, quản lý lịch sử giao dịch và theo

@@ -96,7 +96,7 @@ export default function BannerSlider() {
                     letterSpacing: "0.5px",
                   }}
                 >
-                  MovieBooking
+                  CineGo
                 </span>
 
                 <h1

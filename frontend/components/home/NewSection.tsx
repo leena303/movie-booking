@@ -26,8 +26,7 @@ export default function NewSection() {
     {
       id: 2,
       title: "Kinh nghiệm chọn ghế đẹp khi xem phim",
-      description:
-        "Một vài mẹo giúp bạn có trải nghiệm xem phim tốt hơn.",
+      description: "Một vài mẹo giúp bạn có trải nghiệm xem phim tốt hơn.",
       image:
         "https://images.unsplash.com/photo-1585951237318-9ea5e175b891?q=80&w=1200&auto=format&fit=crop",
       link: "/",
@@ -35,7 +34,7 @@ export default function NewSection() {
     {
       id: 3,
       title: "Cập nhật giao diện đặt vé mới",
-      description: "Hệ thống MovieBooking đã được nâng cấp hiện đại hơn.",
+      description: "Hệ thống CineGo đã được nâng cấp hiện đại hơn.",
       image:
         "https://images.unsplash.com/photo-1478720568477-152d9b164e26?q=80&w=1200&auto=format&fit=crop",
       link: "/",
