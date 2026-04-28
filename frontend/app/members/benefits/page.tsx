@@ -46,9 +46,7 @@ export default function MemberBenefitsPage() {
             Quyền lợi thành viên
           </p>
 
-          <h1 className="fw-bold text-dark">
-            Lợi ích khi có tài khoản MovieBooking
-          </h1>
+          <h1 className="fw-bold text-dark">Lợi ích khi có tài khoản CineGo</h1>
 
           <p className="text-muted mt-3 col-md-8">
             Tài khoản thành viên giúp bạn đặt vé nhanh hơn, quản lý thông tin dễ
