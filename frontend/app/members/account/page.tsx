@@ -8,7 +8,7 @@ export default function MemberAccountPage() {
           Thành viên
         </p>
 
-        <h1 className="fw-bold text-dark">Tài khoản MovieBooking</h1>
+        <h1 className="fw-bold text-dark">Tài khoản CineGo</h1>
 
         <p className="text-muted mt-3 col-md-8">
           Tạo tài khoản để đặt vé nhanh hơn, lưu lịch sử giao dịch, quản lý
