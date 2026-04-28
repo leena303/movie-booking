@@ -1,9 +1,23 @@
 "use client";
 
-import Link from "next/link";
+import { useSyncExternalStore } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { useRouter } from "next/navigation";
-import { useState, useSyncExternalStore } from "react";
+import UserNavbar from "./UserNavbar";
+import AdminNavbar from "./AdminNavbar";
+
+export type StoredUser = {
+  id?: number | string;
+  name?: string;
+  email?: string;
+  role?: string;
+  avatar?: string | null;
+  image?: string | null;
+  avatar_url?: string | null;
+};
+
+function isAdmin(user: StoredUser | null) {
+  return user?.role?.toLowerCase() === "admin";
+}
 
 function useIsClient() {
   return useSyncExternalStore(
@@ -13,99 +27,25 @@ function useIsClient() {
   );
 }
 
-export default function Navbar() {
-  const { token, logout } = useAuth();
-  const router = useRouter();
-  const [openMemberMenu, setOpenMemberMenu] = useState(false);
-  const isClient = useIsClient();
-
-  function handleMyTickets() {
-    if (!token) {
-      router.push("/login");
-      return;
-    }
-    router.push("/profile/bookings");
-  }
-
+function NavbarSkeleton() {
   return (
     <header className="border-bottom bg-light">
-      <div className="container d-flex align-items-center justify-content-between py-3">
-        <div className="d-flex align-items-center gap-4">
-          <Link
-            href="/"
-            className="fw-bold text-danger fs-4 text-decoration-none"
-          >
-            MovieBooking
-          </Link>
-
-          <nav className="d-flex align-items-center">
-            <div className="dropdown position-relative">
-              <button
-                type="button"
-                className="btn btn-link text-dark text-decoration-none dropdown-toggle"
-                onClick={() => setOpenMemberMenu((prev) => !prev)}
-              >
-                Thành viên
-              </button>
-
-              {openMemberMenu && (
-                <ul className="dropdown-menu show" style={{ display: "block" }}>
-                  <li>
-                    <Link
-                      href="/members/account"
-                      className="dropdown-item"
-                      onClick={() => setOpenMemberMenu(false)}
-                    >
-                      Tài khoản
-                    </Link>
-                  </li>
-                  <li>
-                    <Link
-                      href="/members/benefits"
-                      className="dropdown-item"
-                      onClick={() => setOpenMemberMenu(false)}
-                    >
-                      Quyền lợi
-                    </Link>
-                  </li>
-                </ul>
-              )}
-            </div>
-          </nav>
-        </div>
-
-        <nav className="d-flex align-items-center gap-3">
-          <button
-            onClick={handleMyTickets}
-            className="btn btn-link text-decoration-none"
-          >
-            Vé của tôi
-          </button>
-
-          {!isClient ? (
-            <div style={{ width: 180, height: 38 }} />
-          ) : token ? (
-            <button
-              onClick={() => {
-                logout();
-                router.push("/login");
-              }}
-              className="btn btn-dark"
-            >
-              Đăng xuất
-            </button>
-          ) : (
-            <>
-              <Link href="/login" className="btn btn-outline-secondary">
-                Đăng nhập
-              </Link>
-              <Link href="/register" className="btn btn-danger">
-                Đăng ký
-              </Link>
-            </>
-          )}
-        </nav>
-      </div>
+      <div className="container py-3" style={{ height: 70 }} />
     </header>
   );
+}
+
+export default function Navbar() {
+  const isClient = useIsClient();
+  const { user, token, loading, logout } = useAuth();
+
+  if (!isClient || loading) {
+    return <NavbarSkeleton />;
+  }
+
+  if (token && user && isAdmin(user)) {
+    return <AdminNavbar user={user} logout={logout} />;
+  }
+
+  return <UserNavbar user={user} token={token} logout={logout} />;
 }
