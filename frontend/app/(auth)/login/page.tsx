@@ -1,39 +1,15 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, LogIn, UserPlus } from "lucide-react";
+import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import ProtectAuth from "@/components/auth/ProtectAuth";
 
 interface LoginFormData {
   email: string;
   password: string;
-}
-
-function AuthTabs({ active }: { active: "login" | "register" }) {
-  return (
-    <div className="d-flex mb-4" style={{ backgroundColor: "#e11d18" }}>
-      <Link
-        href="/login"
-        className={`flex-fill text-center text-white fw-bold text-decoration-none py-3 ${
-          active === "login" ? "border-bottom border-3 border-white" : ""
-        }`}
-      >
-        ĐĂNG NHẬP
-      </Link>
-
-      <Link
-        href="/register"
-        className={`flex-fill text-center text-white fw-bold text-decoration-none py-3 ${
-          active === "register" ? "border-bottom border-3 border-white" : ""
-        }`}
-      >
-        ĐĂNG KÝ
-      </Link>
-    </div>
-  );
 }
 
 function LoginForm() {
@@ -62,8 +38,7 @@ function LoginForm() {
       return;
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(form.email.trim())) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
       setError("Email không hợp lệ");
       return;
     }
@@ -81,20 +56,15 @@ function LoginForm() {
       const role = data.user.role?.toLowerCase();
 
       setTimeout(() => {
-        if (role === "admin") {
-          router.replace("/admin");
-        } else {
-          router.replace("/");
-        }
-
+        router.replace(role === "admin" ? "/admin" : "/");
         router.refresh();
       }, 500);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Đăng nhập thất bại";
 
       if (
-        message.toLowerCase().includes("email hoặc mật khẩu không đúng") ||
-        message.toLowerCase().includes("invalid email or password")
+        message.toLowerCase().includes("invalid email or password") ||
+        message.toLowerCase().includes("email hoặc mật khẩu không đúng")
       ) {
         setError("Email hoặc mật khẩu không đúng");
       } else {
@@ -106,17 +76,19 @@ function LoginForm() {
   }
 
   return (
-    <main
-      className="container-fluid py-5"
-      style={{ backgroundColor: "#f7f3e8", minHeight: "100vh" }}
-    >
-      <div className="row justify-content-center">
-        <div className="col-12 col-xl-10">
-          <div className="row g-0 bg-white shadow-sm">
-            <div className="col-lg-6 p-0">
-              <AuthTabs active="login" />
+    <main className="auth-page">
+      <section className="auth-card">
+        <div className="row g-0 h-100">
+          <div className="col-lg-6">
+            <div className="auth-form-wrap">
+              <div className="w-100">
+                <div className="auth-title-block">
+                  <h1 className="auth-title">Đăng nhập</h1>
+                  <p className="auth-subtitle">
+                    Chào mừng bạn quay lại CineGo.
+                  </p>
+                </div>
 
-              <div className="px-4 px-md-5 pb-5">
                 {error && <div className="alert alert-danger">{error}</div>}
                 {success && (
                   <div className="alert alert-success">{success}</div>
@@ -124,11 +96,13 @@ function LoginForm() {
 
                 <form onSubmit={handleSubmit}>
                   <div className="mb-3">
-                    <label className="form-label fw-bold">
+                    <label className="form-label fw-semibold">
                       Email hoặc số điện thoại
                     </label>
                     <input
                       type="email"
+                      className="form-control auth-input"
+                      placeholder="Nhập email"
                       value={form.email}
                       onChange={(e) =>
                         setForm((prev) => ({
@@ -136,18 +110,17 @@ function LoginForm() {
                           email: e.target.value,
                         }))
                       }
-                      className="form-control"
-                      placeholder="Email hoặc số điện thoại"
-                      style={{ height: 44 }}
                     />
                   </div>
 
-                  <div className="mb-4">
-                    <label className="form-label fw-bold">Mật khẩu</label>
+                  <div className="mb-3">
+                    <label className="form-label fw-semibold">Mật khẩu</label>
 
                     <div className="position-relative">
                       <input
                         type={showPassword ? "text" : "password"}
+                        className="form-control auth-input pe-5"
+                        placeholder="Nhập mật khẩu"
                         value={form.password}
                         onChange={(e) => {
                           const value = e.target.value;
@@ -155,78 +128,61 @@ function LoginForm() {
                             ...prev,
                             password: value,
                           }));
-
                           if (!value) setShowPassword(false);
                         }}
-                        className="form-control"
-                        placeholder="Mật khẩu"
-                        style={{ height: 44, paddingRight: 46 }}
                       />
 
                       {form.password && (
                         <button
                           type="button"
+                          className="auth-eye-btn"
                           onClick={() => setShowPassword((prev) => !prev)}
-                          className="btn btn-link position-absolute top-50 end-0 translate-middle-y text-secondary p-0 me-3"
+                          aria-label="Toggle password"
                         >
                           {showPassword ? (
-                            <EyeOff size={18} />
+                            <EyeOff size={20} />
                           ) : (
-                            <Eye size={18} />
+                            <Eye size={20} />
                           )}
                         </button>
                       )}
                     </div>
                   </div>
 
+                  <div className="text-end mb-4">
+                    <Link href="/forgot-password" className="auth-link">
+                      Quên mật khẩu?
+                    </Link>
+                  </div>
+
                   <button
                     type="submit"
                     disabled={loading}
-                    className="btn w-100 text-white fw-bold"
-                    style={{
-                      height: 48,
-                      backgroundColor: "#e11d18",
-                      borderRadius: 6,
-                    }}
+                    className="btn auth-submit w-100 mt-3"
                   >
-                    {loading ? "ĐANG ĐĂNG NHẬP..." : "ĐĂNG NHẬP"}
+                    {loading ? "Đang đăng nhập..." : "Đăng nhập"}
                   </button>
                 </form>
-
-                <div className="text-center mt-3">
-                  <Link
-                    href="/forgot-password"
-                    className="text-decoration-none"
-                    style={{ color: "#0d6efd" }}
-                  >
-                    Bạn muốn tìm lại mật khẩu?
-                  </Link>
-                </div>
-              </div>
-            </div>
-
-            <div
-              className="col-lg-6 d-none d-lg-flex align-items-center justify-content-center"
-              style={{
-                minHeight: 520,
-                background: "linear-gradient(135deg, #fffaf0 0%, #fff7dc 100%)",
-                borderLeft: "1px solid #ddd",
-              }}
-            >
-              <div className="text-center px-5">
-                <div style={{ fontSize: 90 }}>🎟️</div>
-                <h3 className="fw-bold mt-3" style={{ color: "#999" }}>
-                  CHƯƠNG TRÌNH TÍCH ĐIỂM
-                </h3>
-                <p className="text-muted">
-                  Đăng nhập để đặt vé nhanh hơn, xem lịch sử vé và nhận thêm
-                  quyền lợi thành viên.
-                </p>
               </div>
             </div>
           </div>
+
+          <div className="col-lg-6 d-none d-lg-flex auth-panel">
+            <div className="auth-panel-content">
+              <LogIn size={66} className="mb-4" />
+              <h2 className="fw-bold mb-3">Hello, Welcome!</h2>
+              <p className="auth-panel-text">
+                Chưa có tài khoản? Đăng ký để đặt vé nhanh hơn và nhận ưu đãi.
+              </p>
+
+              <Link href="/register" className="btn auth-panel-btn">
+                <UserPlus size={20} />
+                Đăng ký
+              </Link>
+            </div>
+          </div>
         </div>
-      </div>
+      </section>
     </main>
   );
 }
