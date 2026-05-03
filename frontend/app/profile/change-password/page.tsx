@@ -1,23 +1,85 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { Eye, EyeOff, LockKeyhole, Save } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
+import { authService } from "@/services/auth";
 
-export default function AccountPage() {
+export default function ChangePasswordPage() {
   const router = useRouter();
-  const { user, token, loading } = useAuth();
+  const { token, loading } = useAuth();
 
-  const [address, setAddress] = useState(user?.address || "");
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+
+  const [showOldPassword, setShowOldPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  const email = useMemo(() => user?.email || "", [user]);
+  useEffect(() => {
+    if (!loading && !token) {
+      router.replace("/login");
+    }
+  }, [loading, token, router]);
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+
+    setError("");
+    setSuccess("");
+
+    if (!oldPassword.trim()) {
+      setError("Vui lòng nhập mật khẩu cũ");
+      return;
+    }
+
+    if (!newPassword.trim()) {
+      setError("Vui lòng nhập mật khẩu mới");
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setError("Mật khẩu mới phải có ít nhất 6 ký tự");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setError("Mật khẩu xác nhận không khớp");
+      return;
+    }
+
+    if (oldPassword === newPassword) {
+      setError("Mật khẩu mới không được trùng mật khẩu cũ");
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+
+      await authService.updateMe({
+        oldPassword,
+        newPassword,
+      });
+
+      setSuccess("Đổi mật khẩu thành công!");
+      setOldPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setShowOldPassword(false);
+      setShowNewPassword(false);
+      setShowConfirmPassword(false);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Đổi mật khẩu thất bại");
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   if (loading) {
     return (
@@ -27,105 +89,143 @@ export default function AccountPage() {
     );
   }
 
-  if (!token || !user) {
-    return null;
-  }
-  router.replace("/login");
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError("");
-    setSuccess("");
-
-    if (newPassword && newPassword !== confirmPassword) {
-      setError("Mật khẩu mới không khớp");
-      return;
-    }
-
-    setSubmitting(true);
-
-    try {
-      await new Promise((r) => setTimeout(r, 1000));
-
-      setSuccess("Cập nhật tài khoản thành công!");
-      setOldPassword("");
-      setNewPassword("");
-      setConfirmPassword("");
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError("Cập nhật thất bại");
-      }
-    } finally {
-      setSubmitting(false);
-    }
+  if (!token) {
+    return (
+      <main className="container py-5">
+        <div className="alert alert-warning">
+          Đang chuyển đến trang đăng nhập...
+        </div>
+      </main>
+    );
   }
 
   return (
-    <main className="container py-5" style={{ maxWidth: 600 }}>
-      <h3 className="fw-bold mb-4">Cập nhật tài khoản</h3>
+    <main className="container py-5" style={{ maxWidth: 720 }}>
+      <div
+        className="rounded-4 p-4 p-md-5 mb-4 text-white"
+        style={{
+          background:
+            "linear-gradient(135deg, #dc3545 0%, #e11d48 55%, #ff6b6b 100%)",
+        }}
+      >
+        <div className="d-flex align-items-center gap-3">
+          <div
+            className="rounded-circle bg-white text-danger d-flex align-items-center justify-content-center"
+            style={{ width: 56, height: 56 }}
+          >
+            <LockKeyhole size={28} />
+          </div>
+
+          <div>
+            <h2 className="fw-bold mb-1">Thay đổi mật khẩu</h2>
+            <p className="mb-0 opacity-75">
+              Cập nhật mật khẩu mới để bảo vệ tài khoản CineGo của bạn.
+            </p>
+          </div>
+        </div>
+      </div>
 
       {error && <div className="alert alert-danger">{error}</div>}
       {success && <div className="alert alert-success">{success}</div>}
 
-      <form onSubmit={handleSubmit} className="card p-4 shadow-sm">
-        <div className="mb-3">
-          <label className="form-label">Email</label>
-          <input className="form-control" value={email} readOnly />
-        </div>
-
-        <div className="mb-3">
-          <label className="form-label">Địa chỉ</label>
-          <input
-            className="form-control"
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
-            placeholder="Nhập địa chỉ"
-          />
-        </div>
-
-        <hr />
-
-        <h6 className="fw-semibold mb-3">Đổi mật khẩu</h6>
-
-        <div className="mb-3">
-          <label className="form-label">Mật khẩu cũ</label>
-          <input
-            type="password"
-            className="form-control"
+      <form
+        onSubmit={handleSubmit}
+        className="card border-0 shadow-sm rounded-4"
+      >
+        <div className="card-body p-4">
+          <PasswordInput
+            label="Mật khẩu cũ"
             value={oldPassword}
-            onChange={(e) => setOldPassword(e.target.value)}
+            show={showOldPassword}
+            placeholder="Nhập mật khẩu cũ"
+            onChange={setOldPassword}
+            onToggle={() => setShowOldPassword((prev) => !prev)}
           />
-        </div>
 
-        <div className="mb-3">
-          <label className="form-label">Mật khẩu mới</label>
-          <input
-            type="password"
-            className="form-control"
+          <PasswordInput
+            label="Mật khẩu mới"
             value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
+            show={showNewPassword}
+            placeholder="Nhập mật khẩu mới"
+            onChange={setNewPassword}
+            onToggle={() => setShowNewPassword((prev) => !prev)}
           />
-        </div>
 
-        <div className="mb-3">
-          <label className="form-label">Xác nhận mật khẩu</label>
-          <input
-            type="password"
-            className="form-control"
+          <PasswordInput
+            label="Xác nhận mật khẩu mới"
             value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
+            show={showConfirmPassword}
+            placeholder="Nhập lại mật khẩu mới"
+            onChange={setConfirmPassword}
+            onToggle={() => setShowConfirmPassword((prev) => !prev)}
           />
-        </div>
 
-        <button
-          type="submit"
-          className="btn btn-danger w-100"
-          disabled={submitting}
-        >
-          {submitting ? "Đang cập nhật..." : "Cập nhật tài khoản"}
-        </button>
+          <div className="d-flex justify-content-end gap-2 mt-4">
+            <button
+              type="button"
+              className="btn btn-outline-secondary"
+              onClick={() => router.push("/profile/account")}
+            >
+              Hủy
+            </button>
+
+            <button
+              type="submit"
+              className="btn btn-danger d-flex align-items-center gap-2 px-4"
+              disabled={submitting}
+            >
+              <Save size={18} />
+              {submitting ? "Đang cập nhật..." : "Cập nhật mật khẩu"}
+            </button>
+          </div>
+        </div>
       </form>
     </main>
+  );
+}
+
+type PasswordInputProps = {
+  label: string;
+  value: string;
+  show: boolean;
+  placeholder: string;
+  onChange: (value: string) => void;
+  onToggle: () => void;
+};
+
+function PasswordInput({
+  label,
+  value,
+  show,
+  placeholder,
+  onChange,
+  onToggle,
+}: PasswordInputProps) {
+  return (
+    <div className="mb-3">
+      <label className="form-label fw-semibold">{label}</label>
+
+      <div className="position-relative">
+        <input
+          type={show ? "text" : "password"}
+          className="form-control"
+          value={value}
+          placeholder={placeholder}
+          onChange={(e) => onChange(e.target.value)}
+          style={{ paddingRight: 46 }}
+        />
+
+        {value && (
+          <button
+            type="button"
+            className="btn btn-link position-absolute top-50 end-0 translate-middle-y text-secondary p-0 me-3"
+            onClick={onToggle}
+            aria-label="Toggle password visibility"
+          >
+            {show ? <EyeOff size={18} /> : <Eye size={18} />}
+          </button>
+        )}
+      </div>
+    </div>
   );
 }
