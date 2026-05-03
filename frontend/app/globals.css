@@ -6,6 +6,7 @@
 
 :root {
   --admin-sidebar-width: 280px;
+  --admin-sidebar-collapsed-width: 86px;
 
   --admin-bg: #f8f9fa;
   --admin-text: #212529;
@@ -285,7 +286,7 @@ body:not(:has(.admin-layout)) .form-control::placeholder {
   color: var(--app-muted) !important;
 }
 
-/* User navbar dark/light fix */
+/* User navbar */
 .user-navbar {
   background: var(--app-navbar-bg) !important;
   color: var(--app-text) !important;
@@ -352,11 +353,18 @@ body:not(:has(.admin-layout)) .form-control::placeholder {
   left: 0;
   width: var(--admin-sidebar-width);
   height: 100vh;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden;
   background: linear-gradient(180deg, #172235 0%, #111827 55%, #0f172a 100%);
   box-shadow: 4px 0 18px rgba(15, 23, 42, 0.22);
   z-index: 1000;
+  transition: width 0.25s ease;
+}
+
+.admin-sidebar-inner {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }
 
 .admin-main {
@@ -367,16 +375,20 @@ body:not(:has(.admin-layout)) .form-control::placeholder {
   background: var(--admin-bg);
   color: var(--admin-text);
   overflow-x: hidden;
+  transition: margin-left 0.25s ease, width 0.25s ease;
 }
 
 .admin-topbar {
   position: sticky;
   top: 0;
   z-index: 900;
+  margin-left: var(--admin-sidebar-width);
+  width: calc(100% - var(--admin-sidebar-width));
   background: var(--admin-topbar-bg);
   color: var(--admin-text);
   border-color: var(--admin-border) !important;
   overflow: visible;
+  transition: margin-left 0.25s ease, width 0.25s ease;
 }
 
 .admin-theme-btn,
@@ -402,7 +414,7 @@ body:not(:has(.admin-layout)) .form-control::placeholder {
   width: 52px;
   height: 52px;
   min-width: 52px;
-  color: #fff;
+  color: #ffffff;
   font-size: 24px;
   border-radius: 999px;
   font-weight: 700;
@@ -436,6 +448,7 @@ body:not(:has(.admin-layout)) .form-control::placeholder {
   white-space: nowrap;
   text-decoration: none;
   opacity: 0.82;
+  transition: all 0.2s ease;
 }
 
 .admin-sidebar-link.active {
@@ -447,6 +460,65 @@ body:not(:has(.admin-layout)) .form-control::placeholder {
 .admin-sidebar-link:hover {
   opacity: 1;
   background: rgba(13, 110, 253, 0.2);
+}
+
+.admin-logout-btn {
+  width: 100%;
+  height: 52px;
+  padding: 0 18px;
+  border-radius: 14px;
+  color: #ffffff;
+  background: rgba(220, 53, 69, 0.16);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-weight: 800;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.admin-logout-btn:hover {
+  background: rgba(220, 53, 69, 0.95);
+  transform: translateY(-1px);
+}
+
+.admin-sidebar-text {
+  transition: opacity 0.2s ease, width 0.2s ease;
+}
+
+.admin-sidebar-collapsed .admin-sidebar {
+  width: var(--admin-sidebar-collapsed-width);
+}
+
+.admin-sidebar-collapsed .admin-main,
+.admin-sidebar-collapsed .admin-topbar {
+  margin-left: var(--admin-sidebar-collapsed-width);
+  width: calc(100% - var(--admin-sidebar-collapsed-width));
+}
+
+.admin-sidebar-collapsed .admin-profile-card {
+  justify-content: center;
+  padding: 0;
+}
+
+.admin-sidebar-collapsed .admin-sidebar-text,
+.admin-sidebar-collapsed .admin-email {
+  opacity: 0;
+  width: 0;
+  overflow: hidden;
+  display: none;
+}
+
+.admin-sidebar-collapsed .admin-sidebar-link,
+.admin-sidebar-collapsed .admin-logout-btn {
+  justify-content: center;
+  padding: 0;
+  gap: 0;
+}
+
+.admin-sidebar-collapsed .admin-sidebar-divider {
+  margin-left: 16px;
+  margin-right: 16px;
 }
 
 .admin-page {
