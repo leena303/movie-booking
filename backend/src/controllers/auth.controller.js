@@ -92,7 +92,6 @@ const authController = {
 
       const user = await UserModel.findByEmail(email);
 
-      // Không báo email có tồn tại hay không để tránh dò email
       if (!user) {
         return res.json({
           message:
@@ -101,7 +100,6 @@ const authController = {
       }
 
       const resetToken = crypto.randomBytes(32).toString("hex");
-
       const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
 
       await UserModel.saveResetPasswordToken(email, resetToken, expiresAt);
@@ -146,7 +144,6 @@ const authController = {
       }
 
       const passwordHash = await bcrypt.hash(password, 10);
-
       await UserModel.updatePasswordById(user.id, passwordHash);
 
       return res.json({
@@ -154,6 +151,73 @@ const authController = {
       });
     } catch (error) {
       console.error("Reset password error:", error);
+      return res.status(500).json({ message: "Server error" });
+    }
+  },
+
+  async updateMe(req, res) {
+    try {
+      const userId = req.user.id;
+      const { name, phone, address, oldPassword, newPassword } = req.body;
+
+      const currentUser = await UserModel.findById(userId);
+
+      if (!currentUser) {
+        return res.status(404).json({
+          message: "Không tìm thấy người dùng",
+        });
+      }
+
+      await UserModel.updateProfileById(userId, {
+        name: name !== undefined ? name.trim() : currentUser.name,
+        phone: phone !== undefined ? phone.trim() : currentUser.phone,
+        address: address !== undefined ? address.trim() : currentUser.address,
+      });
+
+      if (oldPassword || newPassword) {
+        if (!oldPassword || !newPassword) {
+          return res.status(400).json({
+            message: "Vui lòng nhập đầy đủ mật khẩu cũ và mật khẩu mới",
+          });
+        }
+
+        if (newPassword.length < 6) {
+          return res.status(400).json({
+            message: "Mật khẩu mới phải có ít nhất 6 ký tự",
+          });
+        }
+
+        if (oldPassword === newPassword) {
+          return res.status(400).json({
+            message: "Mật khẩu mới không được trùng mật khẩu cũ",
+          });
+        }
+
+        const userPassword = await UserModel.findPasswordById(userId);
+
+        const isMatch = await bcrypt.compare(
+          oldPassword,
+          userPassword.password_hash,
+        );
+
+        if (!isMatch) {
+          return res.status(400).json({
+            message: "Mật khẩu cũ không đúng",
+          });
+        }
+
+        const passwordHash = await bcrypt.hash(newPassword, 10);
+        await UserModel.updatePasswordById(userId, passwordHash);
+      }
+
+      const updatedUser = await UserModel.findById(userId);
+
+      return res.json({
+        message: "Cập nhật tài khoản thành công",
+        user: updatedUser,
+      });
+    } catch (error) {
+      console.error("Update me error:", error);
       return res.status(500).json({ message: "Server error" });
     }
   },
