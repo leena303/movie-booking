@@ -1,60 +1,51 @@
 "use client";
 
-import {
-  Camera,
-  LinkIcon,
-  Mail,
-  MapPin,
-  Phone,
-  Save,
-  User,
-} from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Mail, MapPin, Phone, Save, User } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
+import { authService } from "@/services/auth";
 import type { User as UserType } from "@/types/user";
 
 function getInitial(name: string) {
   return name?.charAt(0)?.toUpperCase() || "U";
 }
 
-type AccountFormProps = {
-  currentUser: UserType;
-  updateUser: (user: UserType) => void;
-};
+export default function AccountPage() {
+  const router = useRouter();
+  const { user, token, loading, setUser } = useAuth();
 
-function AccountForm({ currentUser, updateUser }: AccountFormProps) {
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const currentUser = useMemo(() => user, [user]);
 
-  const [name, setName] = useState(currentUser.name || "");
-  const [phone, setPhone] = useState(currentUser.phone || "");
-  const [address, setAddress] = useState(currentUser.address || "");
-  const [avatarUrl, setAvatarUrl] = useState(currentUser.avatar || "");
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
+
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  const displayName = name.trim() || currentUser.email || "User";
-
-  function handleChooseFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (!file.type.startsWith("image/")) {
-      setError("Vui lòng chọn file ảnh hợp lệ");
-      return;
+  useEffect(() => {
+    if (!loading && (!token || !user)) {
+      router.replace("/login");
     }
+  }, [loading, token, user, router]);
 
-    const localPreviewUrl = URL.createObjectURL(file);
-    setAvatarUrl(localPreviewUrl);
-    setError("");
-  }
+  useEffect(() => {
+    if (user) {
+      setName(user.name || "");
+      setPhone(user.phone || "");
+      setAddress(user.address || "");
+    }
+  }, [user]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
     setError("");
     setSuccess("");
+
+    if (!currentUser) return;
 
     if (!name.trim()) {
       setError("Vui lòng nhập họ tên");
@@ -69,15 +60,15 @@ function AccountForm({ currentUser, updateUser }: AccountFormProps) {
     try {
       setSubmitting(true);
 
-      const updatedUser: UserType = {
-        ...currentUser,
+      const data = await authService.updateMe({
         name: name.trim(),
-        phone: phone.trim() || undefined,
-        address: address.trim() || undefined,
-        avatar: avatarUrl.trim() || null,
-      };
+        phone: phone.trim(),
+        address: address.trim(),
+      });
 
-      updateUser(updatedUser);
+      if (data?.user) {
+        setUser(data.user as UserType);
+      }
 
       setSuccess("Cập nhật tài khoản thành công!");
     } catch (err: unknown) {
@@ -86,6 +77,26 @@ function AccountForm({ currentUser, updateUser }: AccountFormProps) {
       setSubmitting(false);
     }
   }
+
+  if (loading) {
+    return (
+      <main className="container py-5">
+        <div className="alert alert-info">Đang tải...</div>
+      </main>
+    );
+  }
+
+  if (!token || !currentUser) {
+    return (
+      <main className="container py-5">
+        <div className="alert alert-warning">
+          Đang chuyển đến trang đăng nhập...
+        </div>
+      </main>
+    );
+  }
+
+  const displayName = name.trim() || currentUser.email || "User";
 
   return (
     <main className="container py-5">
@@ -98,7 +109,7 @@ function AccountForm({ currentUser, updateUser }: AccountFormProps) {
       >
         <h2 className="fw-bold mb-2">Thông tin tài khoản</h2>
         <p className="mb-0 opacity-75">
-          Quản lý thông tin cá nhân và ảnh đại diện CineGo của bạn.
+          Quản lý thông tin cá nhân CineGo của bạn.
         </p>
       </div>
 
@@ -110,46 +121,16 @@ function AccountForm({ currentUser, updateUser }: AccountFormProps) {
           <div className="card border-0 shadow-sm rounded-4">
             <div className="card-body text-center p-4">
               <div className="d-flex justify-content-center mb-3">
-                {avatarUrl ? (
-                  <div
-                    className="rounded-circle border border-3 border-danger shadow-sm"
-                    style={{
-                      width: 128,
-                      height: 128,
-                      backgroundImage: `url(${avatarUrl})`,
-                      backgroundSize: "cover",
-                      backgroundPosition: "center",
-                    }}
-                  />
-                ) : (
-                  <div
-                    className="rounded-circle bg-danger text-white d-flex align-items-center justify-content-center fw-bold shadow-sm"
-                    style={{ width: 128, height: 128, fontSize: 44 }}
-                  >
-                    {getInitial(displayName)}
-                  </div>
-                )}
+                <div
+                  className="rounded-circle bg-danger text-white d-flex align-items-center justify-content-center fw-bold shadow-sm"
+                  style={{ width: 128, height: 128, fontSize: 44 }}
+                >
+                  {getInitial(displayName)}
+                </div>
               </div>
 
               <h5 className="fw-bold mb-1">{displayName}</h5>
-              <p className="text-muted small mb-4">{currentUser.email}</p>
-
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                className="d-none"
-                onChange={handleChooseFile}
-              />
-
-              <button
-                type="button"
-                className="btn btn-outline-danger w-100 d-flex align-items-center justify-content-center gap-2 mb-3"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <Camera size={18} />
-                Tải ảnh từ máy
-              </button>
+              <p className="text-muted small mb-0">{currentUser.email}</p>
             </div>
           </div>
         </div>
@@ -231,37 +212,4 @@ function AccountForm({ currentUser, updateUser }: AccountFormProps) {
       </form>
     </main>
   );
-}
-
-export default function AccountPage() {
-  const router = useRouter();
-  const { user, token, loading, setUser } = useAuth();
-
-  const currentUser = useMemo(() => user, [user]);
-
-  useEffect(() => {
-    if (!loading && (!token || !currentUser)) {
-      router.replace("/login");
-    }
-  }, [loading, token, currentUser, router]);
-
-  if (loading) {
-    return (
-      <main className="container py-5">
-        <div className="alert alert-info">Đang tải thông tin tài khoản...</div>
-      </main>
-    );
-  }
-
-  if (!token || !currentUser) {
-    return (
-      <main className="container py-5">
-        <div className="alert alert-warning">
-          Đang chuyển đến trang đăng nhập...
-        </div>
-      </main>
-    );
-  }
-
-  return <AccountForm currentUser={currentUser} updateUser={setUser} />;
 }
