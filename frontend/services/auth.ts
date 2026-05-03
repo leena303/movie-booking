@@ -1,10 +1,25 @@
 import { loginApi, registerApi } from "@/lib/api/auth";
+import axiosInstance from "@/lib/axios";
 import {
   LoginPayload,
   RegisterPayload,
   AuthResponse,
   RegisterResponse,
 } from "@/types/auth";
+import type { User } from "@/types/user";
+
+type UpdateMePayload = {
+  name?: string;
+  phone?: string;
+  address?: string;
+  oldPassword?: string;
+  newPassword?: string;
+};
+
+type UpdateMeResponse = {
+  message: string;
+  user: User;
+};
 
 export const authService = {
   async login(payload: LoginPayload): Promise<AuthResponse> {
@@ -30,5 +45,10 @@ export const authService = {
     } catch (error) {
       throw error instanceof Error ? error : new Error("Đăng ký thất bại");
     }
+  },
+
+  async updateMe(payload: UpdateMePayload): Promise<UpdateMeResponse> {
+    const res = await axiosInstance.put("/auth/me", payload);
+    return res.data;
   },
 };
