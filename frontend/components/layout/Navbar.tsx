@@ -1,6 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import { usePathname } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import UserNavbar from "./UserNavbar";
 import AdminNavbar from "./AdminNavbar";
@@ -14,10 +15,6 @@ export type StoredUser = {
   image?: string | null;
   avatar_url?: string | null;
 };
-
-function isAdmin(user: StoredUser | null) {
-  return user?.role?.toLowerCase() === "admin";
-}
 
 function useIsClient() {
   return useSyncExternalStore(
@@ -36,6 +33,7 @@ function NavbarSkeleton() {
 }
 
 export default function Navbar() {
+  const pathname = usePathname();
   const isClient = useIsClient();
   const { user, token, loading, logout } = useAuth();
 
@@ -43,8 +41,14 @@ export default function Navbar() {
     return <NavbarSkeleton />;
   }
 
-  if (token && user && isAdmin(user)) {
+  const isAdminPage = pathname.startsWith("/admin");
+
+  if (isAdminPage && token && user) {
     return <AdminNavbar user={user} logout={logout} />;
+  }
+
+  if (isAdminPage) {
+    return null;
   }
 
   return <UserNavbar user={user} token={token} logout={logout} />;
