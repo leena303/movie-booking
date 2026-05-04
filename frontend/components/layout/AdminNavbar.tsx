@@ -11,11 +11,11 @@ type AdminNavbarProps = {
 };
 
 function getUserName(user: StoredUser) {
-  return user.name || user.email || "Admin";
+  return user?.name || user?.email || "Admin";
 }
 
 function getAvatar(user: StoredUser) {
-  return user.avatar || user.avatar_url || user.image || "";
+  return user?.avatar || user?.avatar_url || user?.image || "";
 }
 
 function getInitial(name: string) {
@@ -59,11 +59,6 @@ export default function AdminNavbar({ user }: AdminNavbarProps) {
             aria-label={
               isSidebarCollapsed ? "Mở rộng sidebar" : "Thu gọn sidebar"
             }
-            style={{
-              width: 42,
-              height: 42,
-              borderRadius: 12,
-            }}
           >
             {isSidebarCollapsed ? (
               <ChevronRight size={22} />
@@ -74,12 +69,12 @@ export default function AdminNavbar({ user }: AdminNavbarProps) {
 
           <div>
             <h5 className="mb-0 fw-bold">Admin Dashboard</h5>
-            <span className="small opacity-75">Movie Booking Management</span>
+            <span className="small text-muted">Movie Booking Management</span>
           </div>
         </div>
 
         <div className="d-flex align-items-center gap-3">
-          <span className="small opacity-75 d-none d-md-inline">
+          <span className="small text-muted d-none d-md-inline">
             Quản trị hệ thống
           </span>
 
@@ -93,11 +88,6 @@ export default function AdminNavbar({ user }: AdminNavbarProps) {
             aria-label={
               isDarkMode ? "Chuyển sang Light mode" : "Chuyển sang Dark mode"
             }
-            style={{
-              width: 42,
-              height: 42,
-              borderRadius: 12,
-            }}
           >
             {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
           </button>
@@ -121,7 +111,7 @@ export default function AdminNavbar({ user }: AdminNavbarProps) {
               </div>
             )}
 
-            <span className="fw-semibold">{userName}</span>
+            <span className="fw-semibold d-none d-sm-inline">{userName}</span>
           </div>
         </div>
       </div>
