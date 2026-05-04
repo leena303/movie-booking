@@ -15,7 +15,7 @@ function sortSeatsByRowAndCol(a: Seat, b: Seat) {
 
 export default function BookingPage() {
   const router = useRouter();
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const params = useParams();
 
   const rawShowtimeId = params?.showtimeId;
@@ -24,6 +24,7 @@ export default function BookingPage() {
       ? Number(rawShowtimeId)
       : null;
 
+  const isAdmin = user?.role?.toLowerCase() === "admin";
   const [seats, setSeats] = useState<Seat[]>([]);
   const [selectedSeats, setSelectedSeats] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
@@ -106,6 +107,11 @@ export default function BookingPage() {
       return;
     }
 
+    if (isAdmin) {
+      setMessage("Tài khoản admin chỉ được xem phim, không thể đặt vé.");
+      return;
+    }
+
     if (!showtimeId) {
       setMessage("Không tìm thấy suất chiếu hợp lệ.");
       return;
@@ -118,15 +124,6 @@ export default function BookingPage() {
 
     router.push(
       `/payment?showtimeId=${showtimeId}&seats=${selectedSeats.join(",")}`,
-    );
-  }
-
-  if (loading) {
-    return (
-      <div className="container py-5 text-center">
-        <div className="spinner-border text-danger" />
-        <p className="mt-3">Đang tải ghế...</p>
-      </div>
     );
   }
 
@@ -178,9 +175,9 @@ export default function BookingPage() {
                 type="button"
                 onClick={handleBooking}
                 className="btn btn-danger w-100"
-                disabled={selectedSeats.length === 0}
+                disabled={selectedSeats.length === 0 || isAdmin}
               >
-                Xác nhận đặt vé
+                {isAdmin ? "Admin không thể đặt vé" : "Xác nhận đặt vé"}
               </button>
             </div>
           </div>
