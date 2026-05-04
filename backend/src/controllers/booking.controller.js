@@ -6,6 +6,11 @@ const bookingController = {
     try {
       const userId = req.user.id;
 
+      if (req.user.role?.toLowerCase() === "admin") {
+        return res.status(403).json({
+          message: "Admin không được phép đặt vé",
+        });
+      }
       const {
         showtimeId,
         seatIds,
