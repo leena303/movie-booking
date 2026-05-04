@@ -8,8 +8,9 @@ import { useAuth } from "@/hooks/useAuth";
 function PaymentContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { token } = useAuth();
+  const { token, user } = useAuth();
 
+  const isAdmin = user?.role?.toLowerCase() === "admin";
   const [showtimeId, setShowtimeId] = useState<number>(0);
   const [seatIds, setSeatIds] = useState<number[]>([]);
 
@@ -24,6 +25,13 @@ function PaymentContent() {
   const [agreeTerms, setAgreeTerms] = useState(false);
 
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (isAdmin) {
+      alert("Tài khoản admin chỉ được xem phim, không thể đặt vé.");
+      router.replace("/");
+    }
+  }, [isAdmin, router]);
 
   useEffect(() => {
     const stId = Number(searchParams.get("showtimeId"));
@@ -80,15 +88,21 @@ function PaymentContent() {
   }
 
   async function handlePayment() {
+    if (!token) {
+      alert("Bạn cần đăng nhập");
+      router.push("/login");
+      return;
+    }
+
+    if (isAdmin) {
+      alert("Tài khoản admin chỉ được xem phim, không thể đặt vé.");
+      router.replace("/");
+      return;
+    }
+
     if (!validate()) return;
 
     try {
-      if (!token) {
-        alert("Bạn cần đăng nhập");
-        router.push("/login");
-        return;
-      }
-
       setLoading(true);
 
       await bookingService.createBooking({
