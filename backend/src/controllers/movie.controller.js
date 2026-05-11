@@ -12,7 +12,12 @@ const movieController = {
       });
     } catch (error) {
       console.error("Get all movies error:", error);
-      return res.status(500).json({ message: "Server error" });
+
+      return res.status(500).json({
+        message: "Server error",
+        error: error.message,
+        code: error.code,
+      });
     }
   },
 
@@ -31,7 +36,12 @@ const movieController = {
       });
     } catch (error) {
       console.error("Get movie by id error:", error);
-      return res.status(500).json({ message: "Server error" });
+
+      return res.status(500).json({
+        message: "Server error",
+        error: error.message,
+        code: error.code,
+      });
     }
   },
 };
