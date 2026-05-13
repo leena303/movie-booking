@@ -31,6 +31,20 @@ function RequiredLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
+function validatePassword(password: string) {
+  if (!password.trim()) return "Vui lòng nhập mật khẩu";
+  if (password.length < 8) return "Mật khẩu phải có ít nhất 8 ký tự";
+  if (!/[A-Z]/.test(password)) return "Mật khẩu phải có ít nhất 1 chữ hoa";
+  if (!/[a-z]/.test(password)) return "Mật khẩu phải có ít nhất 1 chữ thường";
+  if (!/[0-9]/.test(password)) return "Mật khẩu phải có ít nhất 1 số";
+
+  if (!/[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\;/`~]/.test(password)) {
+    return "Mật khẩu phải có ít nhất 1 ký tự đặc biệt";
+  }
+
+  return "";
+}
+
 function RegisterForm() {
   const router = useRouter();
   const { register } = useAuth();
@@ -76,11 +90,8 @@ function RegisterForm() {
       return "Email không hợp lệ";
     }
 
-    if (!form.password.trim()) return "Vui lòng nhập mật khẩu";
-
-    if (form.password.length < 6) {
-      return "Mật khẩu phải có ít nhất 6 ký tự";
-    }
+    const passwordError = validatePassword(form.password);
+    if (passwordError) return passwordError;
 
     if (!form.day || !form.month || !form.year) {
       return "Vui lòng chọn ngày sinh";
@@ -244,65 +255,79 @@ function RegisterForm() {
                     <div className="col-12">
                       <RequiredLabel>Ngày sinh</RequiredLabel>
 
-                      <div className="d-flex flex-wrap align-items-center gap-2">
-                        <select
-                          className="form-select auth-input auth-date-select"
-                          value={form.day}
-                          onChange={(e) => updateField("day", e.target.value)}
-                        >
-                          <option value="">Ngày</option>
-                          {Array.from({ length: 31 }, (_, index) => (
-                            <option key={index + 1} value={String(index + 1)}>
-                              {index + 1}
-                            </option>
-                          ))}
-                        </select>
+                      <div className="row g-2 align-items-center">
+                        <div className="col-4 col-md-2">
+                          <select
+                            className="form-select auth-input"
+                            value={form.day}
+                            onChange={(e) => updateField("day", e.target.value)}
+                          >
+                            <option value="">Ngày</option>
+                            {Array.from({ length: 31 }, (_, index) => (
+                              <option key={index + 1} value={String(index + 1)}>
+                                {index + 1}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
 
-                        <select
-                          className="form-select auth-input auth-date-select"
-                          value={form.month}
-                          onChange={(e) => updateField("month", e.target.value)}
-                        >
-                          <option value="">Tháng</option>
-                          {Array.from({ length: 12 }, (_, index) => (
-                            <option key={index + 1} value={String(index + 1)}>
-                              {index + 1}
-                            </option>
-                          ))}
-                        </select>
+                        <div className="col-4 col-md-2">
+                          <select
+                            className="form-select auth-input"
+                            value={form.month}
+                            onChange={(e) =>
+                              updateField("month", e.target.value)
+                            }
+                          >
+                            <option value="">Tháng</option>
+                            {Array.from({ length: 12 }, (_, index) => (
+                              <option key={index + 1} value={String(index + 1)}>
+                                {index + 1}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
 
-                        <select
-                          className="form-select auth-input auth-date-select"
-                          value={form.year}
-                          onChange={(e) => updateField("year", e.target.value)}
-                        >
-                          <option value="">Năm</option>
-                          {years.map((year) => (
-                            <option key={year} value={year}>
-                              {year}
-                            </option>
-                          ))}
-                        </select>
+                        <div className="col-4 col-md-2">
+                          <select
+                            className="form-select auth-input"
+                            value={form.year}
+                            onChange={(e) =>
+                              updateField("year", e.target.value)
+                            }
+                          >
+                            <option value="">Năm</option>
+                            {years.map((year) => (
+                              <option key={year} value={year}>
+                                {year}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
 
-                        <label className="d-flex align-items-center gap-1 fw-semibold mb-0 ms-md-2">
-                          <input
-                            type="radio"
-                            name="gender"
-                            checked={form.gender === "male"}
-                            onChange={() => updateField("gender", "male")}
-                          />
-                          Nam
-                        </label>
+                        <div className="col-12 col-md-6">
+                          <div className="d-flex align-items-center gap-4 h-100 ps-md-2 mt-2 mt-md-0">
+                            <label className="d-flex align-items-center gap-2 fw-semibold mb-0">
+                              <input
+                                type="radio"
+                                name="gender"
+                                checked={form.gender === "male"}
+                                onChange={() => updateField("gender", "male")}
+                              />
+                              Nam
+                            </label>
 
-                        <label className="d-flex align-items-center gap-1 fw-semibold mb-0">
-                          <input
-                            type="radio"
-                            name="gender"
-                            checked={form.gender === "female"}
-                            onChange={() => updateField("gender", "female")}
-                          />
-                          Nữ
-                        </label>
+                            <label className="d-flex align-items-center gap-2 fw-semibold mb-0">
+                              <input
+                                type="radio"
+                                name="gender"
+                                checked={form.gender === "female"}
+                                onChange={() => updateField("gender", "female")}
+                              />
+                              Nữ
+                            </label>
+                          </div>
+                        </div>
                       </div>
                     </div>
 
@@ -323,20 +348,17 @@ function RegisterForm() {
                     </div>
 
                     <div className="col-12">
-                      <div className="form-check">
+                      <div className="form-check d-flex align-items-start gap-2">
                         <input
                           type="checkbox"
                           id="agreed"
-                          className="form-check-input"
+                          className="form-check-input mt-1"
                           checked={form.agreed}
                           onChange={(e) =>
                             updateField("agreed", e.target.checked)
                           }
                         />
-                        <label
-                          htmlFor="agreed"
-                          className="form-check-label ms-2"
-                        >
+                        <label htmlFor="agreed" className="form-check-label">
                           Tôi xác thực thông tin đã nhập là đúng và đồng ý với{" "}
                           <Link href="/terms" className="auth-link fw-bold">
                             điều khoản
