@@ -6,6 +6,34 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { authService } from "@/services/auth";
 
+function validatePassword(password: string) {
+  if (!password.trim()) {
+    return "Vui lòng nhập mật khẩu mới";
+  }
+
+  if (password.length < 8) {
+    return "Mật khẩu mới phải có ít nhất 8 ký tự";
+  }
+
+  if (!/[A-Z]/.test(password)) {
+    return "Mật khẩu mới phải có ít nhất 1 chữ hoa";
+  }
+
+  if (!/[a-z]/.test(password)) {
+    return "Mật khẩu mới phải có ít nhất 1 chữ thường";
+  }
+
+  if (!/[0-9]/.test(password)) {
+    return "Mật khẩu mới phải có ít nhất 1 số";
+  }
+
+  if (!/[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\;/`~]/.test(password)) {
+    return "Mật khẩu mới phải có ít nhất 1 ký tự đặc biệt";
+  }
+
+  return "";
+}
+
 export default function ChangePasswordPage() {
   const router = useRouter();
   const { token, loading } = useAuth();
@@ -39,13 +67,10 @@ export default function ChangePasswordPage() {
       return;
     }
 
-    if (!newPassword.trim()) {
-      setError("Vui lòng nhập mật khẩu mới");
-      return;
-    }
+    const passwordError = validatePassword(newPassword);
 
-    if (newPassword.length < 6) {
-      setError("Mật khẩu mới phải có ít nhất 6 ký tự");
+    if (passwordError) {
+      setError(passwordError);
       return;
     }
 
@@ -68,9 +93,11 @@ export default function ChangePasswordPage() {
       });
 
       setSuccess("Đổi mật khẩu thành công!");
+
       setOldPassword("");
       setNewPassword("");
       setConfirmPassword("");
+
       setShowOldPassword(false);
       setShowNewPassword(false);
       setShowConfirmPassword(false);
@@ -118,6 +145,7 @@ export default function ChangePasswordPage() {
 
           <div>
             <h2 className="fw-bold mb-1">Thay đổi mật khẩu</h2>
+
             <p className="mb-0 opacity-75">
               Cập nhật mật khẩu mới để bảo vệ tài khoản CineGo của bạn.
             </p>
@@ -126,6 +154,7 @@ export default function ChangePasswordPage() {
       </div>
 
       {error && <div className="alert alert-danger">{error}</div>}
+
       {success && <div className="alert alert-success">{success}</div>}
 
       <form
@@ -175,6 +204,7 @@ export default function ChangePasswordPage() {
               disabled={submitting}
             >
               <Save size={18} />
+
               {submitting ? "Đang cập nhật..." : "Cập nhật mật khẩu"}
             </button>
           </div>
