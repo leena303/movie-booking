@@ -3,6 +3,34 @@ const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const UserModel = require("../models/user.model");
 
+function validatePassword(password) {
+  if (!password || typeof password !== "string") {
+    return "Password is required";
+  }
+
+  if (password.length < 8) {
+    return "Password must contain at least 8 characters";
+  }
+
+  if (!/[A-Z]/.test(password)) {
+    return "Password must contain at least 1 uppercase letter";
+  }
+
+  if (!/[a-z]/.test(password)) {
+    return "Password must contain at least 1 lowercase letter";
+  }
+
+  if (!/[0-9]/.test(password)) {
+    return "Password must contain at least 1 number";
+  }
+
+  if (!/[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\;/`~]/.test(password)) {
+    return "Password must contain at least 1 special character";
+  }
+
+  return "";
+}
+
 const authController = {
   async register(req, res) {
     try {
@@ -12,6 +40,11 @@ const authController = {
         return res.status(400).json({
           message: "Name, email, and password are required",
         });
+      }
+
+      const passwordError = validatePassword(password);
+      if (passwordError) {
+        return res.status(400).json({ message: passwordError });
       }
 
       const existingUser = await UserModel.findByEmail(email);
@@ -129,10 +162,9 @@ const authController = {
         });
       }
 
-      if (password.length < 6) {
-        return res.status(400).json({
-          message: "Password must be at least 6 characters",
-        });
+      const passwordError = validatePassword(password);
+      if (passwordError) {
+        return res.status(400).json({ message: passwordError });
       }
 
       const user = await UserModel.findByResetPasswordToken(token);
@@ -181,10 +213,9 @@ const authController = {
           });
         }
 
-        if (newPassword.length < 6) {
-          return res.status(400).json({
-            message: "Mật khẩu mới phải có ít nhất 6 ký tự",
-          });
+        const passwordError = validatePassword(newPassword);
+        if (passwordError) {
+          return res.status(400).json({ message: passwordError });
         }
 
         if (oldPassword === newPassword) {
