@@ -8,15 +8,17 @@ interface ProtectAuthProps {
   children: React.ReactNode;
   requireAuth: boolean;
   redirectIfAuth?: string;
+  requireAdmin?: boolean;
 }
 
 export default function ProtectAuth({
   children,
   requireAuth,
-  redirectIfAuth = "/",
+  redirectIfAuth,
+  requireAdmin = false,
 }: ProtectAuthProps) {
   const router = useRouter();
-  const { loading, isAuthenticated } = useAuth();
+  const { loading, isAuthenticated, user } = useAuth();
 
   useEffect(() => {
     if (loading) return;
@@ -26,10 +28,24 @@ export default function ProtectAuth({
       return;
     }
 
-    if (!requireAuth && isAuthenticated) {
-      router.replace(redirectIfAuth);
+    if (requireAdmin && isAuthenticated && user?.role !== "admin") {
+      router.replace("/");
+      return;
     }
-  }, [loading, isAuthenticated, requireAuth, redirectIfAuth, router]);
+
+    if (!requireAuth && isAuthenticated) {
+      const path = redirectIfAuth ?? (user?.role === "admin" ? "/admin" : "/");
+      router.replace(path);
+    }
+  }, [
+    loading,
+    isAuthenticated,
+    user,
+    requireAuth,
+    requireAdmin,
+    redirectIfAuth,
+    router,
+  ]);
 
   if (loading) {
     return (
@@ -45,6 +61,7 @@ export default function ProtectAuth({
   }
 
   if (requireAuth && !isAuthenticated) return null;
+  if (requireAdmin && isAuthenticated && user?.role !== "admin") return null;
   if (!requireAuth && isAuthenticated) return null;
 
   return <>{children}</>;
