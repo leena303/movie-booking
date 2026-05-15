@@ -59,26 +59,6 @@ This project was developed as my internship final project to improve my frontend
 
 ---
 
-# 🖼️ Screenshots
-
-## Home Page
-
-![Home](./screenshots/home.png)
-
-## Movie Details
-
-![Movie Details](./screenshots/movie-details.png)
-
-## Seat Booking
-
-![Seat Booking](./screenshots/seat-booking.png)
-
-## Admin Dashboard
-
-![Dashboard](./screenshots/dashboard.png)
-
----
-
 # 🧠 About This Project
 
 During my internship, I worked as a Frontend Developer Intern and participated in building a complete movie booking platform.
