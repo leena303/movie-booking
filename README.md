@@ -146,7 +146,7 @@ movie-booking-system/
 ## Clone Repository
 
 ```bash
-git clone https://github.com/your-username/movie-booking-system.git
+git clone https://github.com/leena303/movie-booking-system.git
 ```
 
 ## Navigate to Project
