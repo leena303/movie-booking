@@ -218,14 +218,9 @@ http://localhost:3000
 **Na Lee**
 Frontend Developer Intern
 
-GitHub: https://github.com/your-username
+GitHub: https://github.com/leena303
 
 ---
-
-# 📬 Contact
-
-* Email: [your-email@example.com](mailto:your-email@example.com)
-* LinkedIn: https://linkedin.com/in/your-profile
 
 ---
 
