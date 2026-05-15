@@ -86,6 +86,7 @@ This project helped me improve both my technical skills and teamwork experience 
 * Next.js
 * React
 * TypeScript
+* Bootstrap
 * TailwindCSS
 * Axios
 
